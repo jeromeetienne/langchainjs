@@ -17,6 +17,7 @@ const entrypoints = {
   "tools/aws_lambda": "tools/aws_lambda",
   "tools/calculator": "tools/calculator",
   "tools/webbrowser": "tools/webbrowser",
+  "tools/wikipedia_tool": "tools/wikipedia_tool",
   // chains
   chains: "chains/index",
   "chains/load": "chains/load",
@@ -75,6 +76,7 @@ const entrypoints = {
   "document_loaders/web/github": "document_loaders/web/github",
   "document_loaders/web/s3": "document_loaders/web/s3",
   "document_loaders/web/confluence": "document_loaders/web/confluence",
+  "document_loaders/web/wikipedia": "document_loaders/web/wikipedia",
   "document_loaders/fs/directory": "document_loaders/fs/directory",
   "document_loaders/fs/buffer": "document_loaders/fs/buffer",
   "document_loaders/fs/text": "document_loaders/fs/text",

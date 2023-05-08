@@ -1,6 +1,8 @@
 import * as agents from "langchain/agents";
 import * as base_language from "langchain/base_language";
 import * as tools from "langchain/tools";
+import * as tools_wikipedia_api_wrapper from "langchain/tools/wikipedia_api_wrapper";
+import * as tools_wikipedia_tool from "langchain/tools/wikipedia_tool";
 import * as chains from "langchain/chains";
 import * as embeddings_base from "langchain/embeddings/base";
 import * as embeddings_fake from "langchain/embeddings/fake";

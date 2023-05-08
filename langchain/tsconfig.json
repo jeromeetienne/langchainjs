@@ -39,6 +39,8 @@
       "src/tools/aws_lambda.ts",
       "src/tools/calculator.ts",
       "src/tools/webbrowser.ts",
+      "src/tools/wikipedia_api_wrapper.ts",
+      "src/tools/wikipedia_tool.ts",
       "src/chains/index.ts",
       "src/chains/load.ts",
       "src/embeddings/base.ts",

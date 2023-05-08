@@ -9792,6 +9792,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"camelcase@npm:^4.1.0":
+  version: 4.1.0
+  resolution: "camelcase@npm:4.1.0"
+  checksum: 9683356daf9b64fae4b30c91f8ceb1f34f22746e03d1804efdbe738357d38b47f206cdd71efcf2ed72018b2e88eeb8ec3f79adb09c02f1253a4b6d5d405ff2ae
+  languageName: node
+  linkType: hard
+
 "camelcase@npm:^5.3.1":
   version: 5.3.1
   resolution: "camelcase@npm:5.3.1"
@@ -10720,7 +10727,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cross-fetch@npm:3.1.5, cross-fetch@npm:^3.1.5":
+"cross-fetch@npm:3.1.5, cross-fetch@npm:^3.0.2, cross-fetch@npm:^3.1.5":
   version: 3.1.5
   resolution: "cross-fetch@npm:3.1.5"
   dependencies:
@@ -13186,6 +13193,7 @@ __metadata:
     typeorm: ^0.3.12
     typescript: ^5.0.0
     weaviate-ts-client: ^1.0.0
+    wikijs: ^6.4.1
     zod: ^3.21.4
   languageName: unknown
   linkType: soft
@@ -14948,6 +14956,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"hyntax@npm:^1.1.9":
+  version: 1.1.9
+  resolution: "hyntax@npm:1.1.9"
+  checksum: 909c772cc785ff7bc324b2e93e902c4360388251faa736cb256bbf1613a1434b3ea28e7ffd66b6791a9137cdf12d5b447a8186c90dd4b38a75f0a4ea561fb0ee
+  languageName: node
+  linkType: hard
+
 "iconv-lite@npm:0.4, iconv-lite@npm:0.4.24, iconv-lite@npm:^0.4.24":
   version: 0.4.24
   resolution: "iconv-lite@npm:0.4.24"
@@ -15101,6 +15116,15 @@ __metadata:
     once: ^1.3.0
     wrappy: 1
   checksum: f4f76aa072ce19fae87ce1ef7d221e709afb59d445e05d47fba710e85470923a75de35bfae47da6de1b18afc3ce83d70facf44cfb0aff89f0a3f45c0a0244dfd
+  languageName: node
+  linkType: hard
+
+"infobox-parser@npm:3.6.2":
+  version: 3.6.2
+  resolution: "infobox-parser@npm:3.6.2"
+  dependencies:
+    camelcase: ^4.1.0
+  checksum: a09ab6d338631590f7d0ade0b7d3d179507ada170aa81f9b404b9df8fb2c780d95e8a79b027267381594bb575d3d69f39f1d9a8af0c5f6213d5b671877380d2f
   languageName: node
   linkType: hard
 
@@ -17357,6 +17381,7 @@ __metadata:
     typescript: ^5.0.0
     uuid: ^9.0.0
     weaviate-ts-client: ^1.0.0
+    wikijs: ^6.4.1
     yaml: ^2.2.1
     zod: ^3.21.4
     zod-to-json-schema: ^3.20.4
@@ -17466,6 +17491,7 @@ __metadata:
     prettier: ^2.8.3
     turbo: latest
     typescript: ^5.0.0
+    wikijs: ^6.4.1
   languageName: unknown
   linkType: soft
 
@@ -26188,6 +26214,17 @@ __metadata:
   dependencies:
     string-width: ^5.0.1
   checksum: 64c48cf27171221be5f86fc54b94dd29879165bdff1a7aa92dde723d9a8c99fb108312768a5d62c8c2b80b701fa27bbd36a1ddc58367585cd45c0db7920a0cba
+  languageName: node
+  linkType: hard
+
+"wikijs@npm:^6.4.1":
+  version: 6.4.1
+  resolution: "wikijs@npm:6.4.1"
+  dependencies:
+    cross-fetch: ^3.0.2
+    hyntax: ^1.1.9
+    infobox-parser: 3.6.2
+  checksum: c4cefb59407960abffb4b4fe91eb0dc22403dea8bcc01f9250b653e4cb2898f029aa364858e5f2472f1ea2fc5dbd9936869b09aa8b466e5de9b7d606bb63fa8c
   languageName: node
   linkType: hard
 

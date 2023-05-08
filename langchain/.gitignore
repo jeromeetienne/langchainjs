@@ -19,6 +19,12 @@ tools/calculator.d.ts
 tools/webbrowser.cjs
 tools/webbrowser.js
 tools/webbrowser.d.ts
+tools/wikipedia_api_wrapper.cjs
+tools/wikipedia_api_wrapper.js
+tools/wikipedia_api_wrapper.d.ts
+tools/wikipedia_tool.cjs
+tools/wikipedia_tool.js
+tools/wikipedia_tool.d.ts
 chains.cjs
 chains.js
 chains.d.ts

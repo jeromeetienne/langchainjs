@@ -6,8 +6,8 @@ import { Tool } from "./base.js";
 
 import { Document } from "../document.js";
 import { RecursiveCharacterTextSplitter } from "../text_splitter.js";
-import { loadQAStuffChain } from "../chains/question_answering/load.js";
-import { OpenAI } from '../index.js';
+// import { loadQAStuffChain } from "../chains/question_answering/load.js";
+// import { OpenAI } from '../index.js';
 
 // import { OpenAI } from "langchain/llms/openai";
 // import { loadQAStuffChain } from "langchain/chains"
@@ -83,6 +83,7 @@ class WikipediaApiWrapper {
 	 */
 	contentType: string
 
+	// TODO should i use the Args structure like elsewhere?
 	/**
 	 * 
 	 * @param {'summary'|'content'} contentType 
@@ -172,71 +173,71 @@ class WikipediaApiWrapper {
 /**
  * WikipediaTool is a tool that uses Wikipedia to answer questions.
  */
-class WikipediaTool extends Tool {
-	// same as the python version - https://github.com/hwchase17/langchain/blob/master/langchain/tools/wikipedia/tool.py
-	name = "Wikipedia"
+// class WikipediaTool extends Tool {
+// 	// same as the python version - https://github.com/hwchase17/langchain/blob/master/langchain/tools/wikipedia/tool.py
+// 	name = "Wikipedia"
 
-	// same as the python version - https://github.com/hwchase17/langchain/blob/master/langchain/tools/wikipedia/tool.py
-	description = "A wrapper around Wikipedia."
-		+ "Useful for when you need to answer general questions about "
-		+ "people, places, companies, historical events, or other subjects. "
-		+ "Input should be a search query."
+// 	// same as the python version - https://github.com/hwchase17/langchain/blob/master/langchain/tools/wikipedia/tool.py
+// 	description = "A wrapper around Wikipedia."
+// 		+ "Useful for when you need to answer general questions about "
+// 		+ "people, places, companies, historical events, or other subjects. "
+// 		+ "Input should be a search query."
 
-	contentType: string
+// 	contentType: string
 
-	topKResults: number
-	// /////////////////////////////////////////////////////////////////////////////
-	// /////////////////////////////////////////////////////////////////////////////
-	//	
-	// /////////////////////////////////////////////////////////////////////////////
-	// /////////////////////////////////////////////////////////////////////////////
+// 	topKResults: number
+// 	// /////////////////////////////////////////////////////////////////////////////
+// 	// /////////////////////////////////////////////////////////////////////////////
+// 	//	
+// 	// /////////////////////////////////////////////////////////////////////////////
+// 	// /////////////////////////////////////////////////////////////////////////////
 
-	/**
-	 * 
-	 * @param {'summary'|'content'} contentType 
-	 * @param {number} topKResults limit the number of documents to load
-	 */
-	constructor(contentType = "summary", topKResults = 1) {
-		super()
+// 	/**
+// 	 * 
+// 	 * @param {'summary'|'content'} contentType 
+// 	 * @param {number} topKResults limit the number of documents to load
+// 	 */
+// 	constructor(contentType = "summary", topKResults = 1) {
+// 		super()
 
-		this.contentType = contentType
-		this.topKResults = topKResults
-	}
+// 		this.contentType = contentType
+// 		this.topKResults = topKResults
+// 	}
 
-	// /////////////////////////////////////////////////////////////////////////////
-	// /////////////////////////////////////////////////////////////////////////////
-	//	
-	// /////////////////////////////////////////////////////////////////////////////
-	// /////////////////////////////////////////////////////////////////////////////
+// 	// /////////////////////////////////////////////////////////////////////////////
+// 	// /////////////////////////////////////////////////////////////////////////////
+// 	//	
+// 	// /////////////////////////////////////////////////////////////////////////////
+// 	// /////////////////////////////////////////////////////////////////////////////
 
-	/**
-	 * 
-	 * @param {string} inputText 
-	 */
-	async _call(inputText: string): Promise<string> {
-		// Load the documents from wikipediaApiWrapper
-		console.log(`WikipediaTool querying wikipedia for "${inputText}"`)
-		const wikipediaApiWrapper = new WikipediaApiWrapper(this.contentType, this.topKResults)
-		const loadedDocuments = await wikipediaApiWrapper.run(inputText)
+// 	/**
+// 	 * 
+// 	 * @param {string} inputText 
+// 	 */
+// 	async _call(inputText: string): Promise<string> {
+// 		// Load the documents from wikipediaApiWrapper
+// 		console.log(`WikipediaTool querying wikipedia for "${inputText}"`)
+// 		const wikipediaApiWrapper = new WikipediaApiWrapper(this.contentType, this.topKResults)
+// 		const loadedDocuments = await wikipediaApiWrapper.run(inputText)
 
-		// Create the chain
-		const model = new OpenAI({
-			temperature: 0.0,
-		});
-		const qaChain = loadQAStuffChain(model);
+// 		// Create the chain
+// 		const model = new OpenAI({
+// 			temperature: 0.0,
+// 		});
+// 		const qaChain = loadQAStuffChain(model);
 
-		// run the chain
-		console.log(`WikipediaTool run chain with "${inputText}"`)
-		const chainValues = await qaChain.call({
-			input_documents: loadedDocuments,
-			question: inputText,
-		});
-		console.log(`WikipediaTool resulting text is "${chainValues.text}"`)
+// 		// run the chain
+// 		console.log(`WikipediaTool run chain with "${inputText}"`)
+// 		const chainValues = await qaChain.call({
+// 			input_documents: loadedDocuments,
+// 			question: inputText,
+// 		});
+// 		console.log(`WikipediaTool resulting text is "${chainValues.text}"`)
 
-		// return the answer
-		return chainValues.text
-	}
-}
+// 		// return the answer
+// 		return chainValues.text
+// 	}
+// }
 
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -246,7 +247,7 @@ class WikipediaTool extends Tool {
 // /////////////////////////////////////////////////////////////////////////////
 
 // class WikipediaApiWrapper{}
-// class WikipediaTool { }
+class WikipediaTool { }
 
 export { Wikipedia, WikipediaApiWrapper, WikipediaTool };
 // export { Wikipedia,  };

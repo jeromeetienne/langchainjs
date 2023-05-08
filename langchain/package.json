@@ -31,6 +31,12 @@
     "tools/webbrowser.cjs",
     "tools/webbrowser.js",
     "tools/webbrowser.d.ts",
+    "tools/wikipedia_api_wrapper.cjs",
+    "tools/wikipedia_api_wrapper.js",
+    "tools/wikipedia_api_wrapper.d.ts",
+    "tools/wikipedia_tool.cjs",
+    "tools/wikipedia_tool.js",
+    "tools/wikipedia_tool.d.ts",
     "chains.cjs",
     "chains.js",
     "chains.d.ts",
@@ -506,6 +512,7 @@
     "p-queue": "^6.6.2",
     "p-retry": "4",
     "uuid": "^9.0.0",
+    "wikijs": "^6.4.1",
     "yaml": "^2.2.1",
     "zod": "^3.21.4",
     "zod-to-json-schema": "^3.20.4"
@@ -567,6 +574,16 @@
       "types": "./tools/webbrowser.d.ts",
       "import": "./tools/webbrowser.js",
       "require": "./tools/webbrowser.cjs"
+    },
+    "./tools/wikipedia_api_wrapper": {
+      "types": "./tools/wikipedia_api_wrapper.d.ts",
+      "import": "./tools/wikipedia_api_wrapper.js",
+      "require": "./tools/wikipedia_api_wrapper.cjs"
+    },
+    "./tools/wikipedia_tool": {
+      "types": "./tools/wikipedia_tool.d.ts",
+      "import": "./tools/wikipedia_tool.js",
+      "require": "./tools/wikipedia_tool.cjs"
     },
     "./chains": {
       "types": "./chains.d.ts",
