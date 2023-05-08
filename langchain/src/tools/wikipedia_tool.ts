@@ -80,6 +80,9 @@ class WikipediaTool extends Tool {
 		console.log(`WikipediaTool querying wikipedia for "${searchQuery}"`)
 		const wikipediaApiWrapper = new WikipediaPageLoader(this.wikipediaApiWrapperArgs)
 
+		// TODO wikipedia searchQuery should be different from the ```question``` of the qaChain
+		// 
+
 		// @ts-ignore
 		const loadedDocuments = await wikipediaApiWrapper.run(searchQuery)
 

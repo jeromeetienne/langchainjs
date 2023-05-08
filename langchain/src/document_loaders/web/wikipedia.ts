@@ -17,6 +17,12 @@ import { BaseDocumentLoader } from "../base.js";
 // /////////////////////////////////////////////////////////////////////////////
 
 export interface WikipediaPageLoaderArgs {
+
+	/**
+	 * @param {string} searchQuery input text to search
+	 */
+	searchQuery: string;
+
 	/**
 	 * @param {'summary'|'content'} contentType summary are shorter, content are longer. default to summary
 	 */
@@ -49,23 +55,22 @@ export class WikipediaPageLoader extends BaseDocumentLoader  {
 	 */
 	private contentType: string
 
+	searchQuery: string
+
 	constructor(args?: WikipediaPageLoaderArgs) {
 		super()
 
 		this.contentType = args?.contentType ?? 'summary'
 		this.topKResults = args?.topKResults ?? 1
+
+		this.searchQuery = args?.searchQuery ?? 'batman'
+
 	}
 
-	async load(): Promise<Document<Record<string, any>>[]> {
-	    return []
-	}
+	async load(){
+		// trim the string to the maximum length if needed
+		const searchQuery = this.searchQuery.substring(0, this.WIKIPEDIA_MAX_QUERY_LENGTH);
 
-	/**
-	 * 
-	 * @param {string} searchQuery input text to search
-	 */
-	
-	async run(searchQuery: string): Promise<Document[]> {
 		let returnedDocuments: Document[] = []
 
 		// trim the string to the maximum length if needed
@@ -81,6 +86,7 @@ export class WikipediaPageLoader extends BaseDocumentLoader  {
 			// @ts-ignore
 			const wikiPage = await Wikijs().page(pageTitle)
 
+			// load the page content based on the content type
 			let pageContent = /** @type {string} */(null)
 			if (this.contentType === "summary") {
 				pageContent = await wikiPage.summary()
