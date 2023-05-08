@@ -1,20 +1,8 @@
-// import { BaseLLM } from "../llms/base.js";
-import { Tool, ToolParams } from "./base.js";
-// import { Embeddings } from "../embeddings/base.js";
-
-import { loadQAStuffChain } from "../chains/question_answering/load.js";
-// import { OpenAI } from "../llms/openai.js";
-
-
-// import { OpenAI } from "langchain/llms/openai";/
-// import { loadQAStuffChain } from "langchain/chains"
-// import { Tool } from "langchain/tools";
-
-// import Debug from 'debug'
-// const debug = Debug('langchain-playground:src:extensions:langchain_wikipedia_tool')
-
-import { WikipediaPageLoader, WikipediaPageLoaderArgs } from "./wikipedia_api_wrapper.js";
 import { BaseLLM } from "../llms/base.js";
+import { Tool, ToolParams } from "./base.js";
+import { loadQAStuffChain } from "../chains/question_answering/load.js";
+
+import { WikipediaPageLoader, WikipediaPageLoaderArgs } from "../document_loaders/web/wikipedia.js";
 
 // /////////////////////////////////////////////////////////////////////////////
 // /////////////////////////////////////////////////////////////////////////////
@@ -23,11 +11,9 @@ import { BaseLLM } from "../llms/base.js";
 // /////////////////////////////////////////////////////////////////////////////
 
 export interface WikipediaToolArgs extends ToolParams {
-	// model: BaseLLM;
-
 	verbose?: boolean;
 
-	wikipediaApiWrapperArgs?: WikipediaPageLoaderArgs;
+	wikipediaPageLoaderArgs?: WikipediaPageLoaderArgs;
 }
 
 /**
@@ -43,9 +29,8 @@ class WikipediaTool extends Tool {
 		+ "people, places, companies, historical events, or other subjects. "
 		+ "Input should be a search query."
 
-	private wikipediaApiWrapperArgs?: WikipediaPageLoaderArgs
+	private wikipediaPageLoaderArgs?: WikipediaPageLoaderArgs
 
-	// private model;
 	private model: BaseLLM;
 
 	// /////////////////////////////////////////////////////////////////////////////
@@ -59,10 +44,8 @@ class WikipediaTool extends Tool {
 
 		// TODO how to handle default values ?
 
-
-
 		this.model = model;
-		this.wikipediaApiWrapperArgs = args?.wikipediaApiWrapperArgs;
+		this.wikipediaPageLoaderArgs = args?.wikipediaPageLoaderArgs;
 	}
 
 	// /////////////////////////////////////////////////////////////////////////////
@@ -78,20 +61,19 @@ class WikipediaTool extends Tool {
 	async _call(searchQuery: string): Promise<string> {
 		// Load the documents from wikipediaApiWrapper
 		console.log(`WikipediaTool querying wikipedia for "${searchQuery}"`)
-		const wikipediaApiWrapper = new WikipediaPageLoader(this.wikipediaApiWrapperArgs)
-
-		// TODO wikipedia searchQuery should be different from the ```question``` of the qaChain
-		// 
-
-		// @ts-ignore
-		const loadedDocuments = await wikipediaApiWrapper.run(searchQuery)
+		const wikipediaPageLoader = new WikipediaPageLoader(searchQuery , this.wikipediaPageLoaderArgs)
+		const loadedDocuments = await wikipediaPageLoader.load()
 
 		// Create the chain
-		// TODO do i need to expose more parameters ? YES
+		// TODO do i need to expose more parameters ? YES, e.g. embeddings
+		// TODO why should i force the chain to be loaded with the model ?
 		const qaChain = loadQAStuffChain(this.model);
 
 		// TODO to remove this log
 		console.log(`WikipediaTool run chain with "${searchQuery}"`)
+
+		// TODO wikipedia searchQuery should be different from the ```question``` of the qaChain
+		// 
 
 		// run the chain
 		const chainValues = await qaChain.call({

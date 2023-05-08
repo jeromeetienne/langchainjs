@@ -2,14 +2,14 @@ import { WikipediaPageLoader, WikipediaPageLoaderArgs } from 'langchain/tools/wi
 
 export async function run() {
 
-        const apiWrapperArgs: WikipediaPageLoaderArgs = {
+        const loaderArgs: WikipediaPageLoaderArgs = {
                 contentType: 'summary',
                 topKResults: 3
         };
-        const wikipediaApiWrapper = new WikipediaPageLoader(apiWrapperArgs);
+        const wikipediaPageLoader = new WikipediaPageLoader(loaderArgs);
 
         const searchQuery = 'batman';
-        const loadedDocuments = await wikipediaApiWrapper.run(searchQuery);
+        const loadedDocuments = await wikipediaPageLoader.run(searchQuery);
 
         console.log({ loadedDocuments });
 

@@ -17,12 +17,6 @@ import { BaseDocumentLoader } from "../base.js";
 // /////////////////////////////////////////////////////////////////////////////
 
 export interface WikipediaPageLoaderArgs {
-
-	/**
-	 * @param {string} searchQuery input text to search
-	 */
-	searchQuery: string;
-
 	/**
 	 * @param {'summary'|'content'} contentType summary are shorter, content are longer. default to summary
 	 */
@@ -57,24 +51,22 @@ export class WikipediaPageLoader extends BaseDocumentLoader  {
 
 	searchQuery: string
 
-	constructor(args?: WikipediaPageLoaderArgs) {
+	constructor(searchQuery: string, args?: WikipediaPageLoaderArgs) {
 		super()
+
+		this.searchQuery = searchQuery
 
 		this.contentType = args?.contentType ?? 'summary'
 		this.topKResults = args?.topKResults ?? 1
 
-		this.searchQuery = args?.searchQuery ?? 'batman'
 
 	}
 
 	async load(){
-		// trim the string to the maximum length if needed
-		const searchQuery = this.searchQuery.substring(0, this.WIKIPEDIA_MAX_QUERY_LENGTH);
-
 		let returnedDocuments: Document[] = []
 
 		// trim the string to the maximum length if needed
-		const truncatedText = searchQuery.substring(0, this.WIKIPEDIA_MAX_QUERY_LENGTH);
+		const truncatedText = this.searchQuery.substring(0, this.WIKIPEDIA_MAX_QUERY_LENGTH);
 
 		// search wikipedia
 		// @ts-ignore
@@ -112,6 +104,8 @@ export class WikipediaPageLoader extends BaseDocumentLoader  {
 
 			// TODO why do i force this text-splitter ? i should make it flexible. See how other are doing it
 			// - maybe as a parameter to the constructor ? with a reasonable default sounds good
+
+			// FIXME remove all this text-splitter stuff from here, up to the caller to called
 
 			// split text into smaller documents
 			const textSplitter = new RecursiveCharacterTextSplitter({ chunkSize: 1000 });
