@@ -66,7 +66,7 @@ export class OpenAiTokenCost {
   ///
 
   // from https://github.com/langchain-ai/langchain/blob/master/libs/langchain/langchain/callbacks/openai_info.py
-  static MODEL_COST_PER_1K_TOKENS: { [index: string]: number } = {
+  static _MODEL_COST_PER_1K_TOKENS: { [index: string]: number } = {
     // GPT-4 input
     "gpt-4": 0.03,
     "gpt-4-0314": 0.03,
@@ -151,16 +151,15 @@ export class OpenAiTokenCost {
   static _getOpenaiTokenCostForModel(modelName: string, numTokens: number, isCompletion = false) {
     const modelNameStandardized = OpenAiTokenCost._standardizeModelName(modelName, isCompletion);
 
-    if (!(modelNameStandardized in OpenAiTokenCost.MODEL_COST_PER_1K_TOKENS)) {
+    if (!(modelNameStandardized in OpenAiTokenCost._MODEL_COST_PER_1K_TOKENS)) {
       throw new Error(
-        `Unknown model: ${modelName}. Please provide a valid OpenAI model name. Known models are: ${Object.keys(OpenAiTokenCost.MODEL_COST_PER_1K_TOKENS).join(', ')}`
+        `Unknown model: ${modelName}. Please provide a valid OpenAI model name. Known models are: ${Object.keys(OpenAiTokenCost._MODEL_COST_PER_1K_TOKENS).join(', ')}`
       );
     }
 
-    return OpenAiTokenCost.MODEL_COST_PER_1K_TOKENS[modelName] * (numTokens / 1000);
+    return OpenAiTokenCost._MODEL_COST_PER_1K_TOKENS[modelName] * (numTokens / 1000);
   }
 }
-
 
 /**
  * - https://python.langchain.com/docs/modules/model_io/models/llms/token_usage_tracking
