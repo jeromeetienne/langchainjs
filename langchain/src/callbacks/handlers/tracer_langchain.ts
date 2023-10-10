@@ -1,15 +1,32 @@
-import { LangChainPlusClient } from "langchainplus-sdk";
-import { Run, RunCreate, RunUpdate } from "langchainplus-sdk/schemas";
+import { Client } from "langsmith";
+import {
+  BaseRun,
+  RunCreate,
+  RunUpdate as BaseRunUpdate,
+  KVMap,
+} from "langsmith/schemas";
 import {
   getEnvironmentVariable,
   getRuntimeEnvironment,
 } from "../../util/env.js";
 import { BaseTracer } from "./tracer.js";
+import { BaseCallbackHandlerInput } from "../base.js";
 
-export interface LangChainTracerFields {
+export interface Run extends BaseRun {
+  id: string;
+  child_runs: this[];
+  child_execution_order: number;
+}
+
+export interface RunUpdate extends BaseRunUpdate {
+  events: BaseRun["events"];
+  inputs: KVMap;
+}
+
+export interface LangChainTracerFields extends BaseCallbackHandlerInput {
   exampleId?: string;
-  sessionName?: string;
-  client?: LangChainPlusClient;
+  projectName?: string;
+  client?: Client;
 }
 
 export class LangChainTracer
@@ -18,34 +35,38 @@ export class LangChainTracer
 {
   name = "langchain_tracer";
 
-  sessionName?: string;
+  projectName?: string;
 
   exampleId?: string;
 
-  client: LangChainPlusClient;
+  client: Client;
 
-  constructor({ exampleId, sessionName, client }: LangChainTracerFields = {}) {
-    super();
+  constructor(fields: LangChainTracerFields = {}) {
+    super(fields);
+    const { exampleId, projectName, client } = fields;
 
-    this.sessionName =
-      sessionName ?? getEnvironmentVariable("LANGCHAIN_SESSION");
+    this.projectName =
+      projectName ??
+      getEnvironmentVariable("LANGCHAIN_PROJECT") ??
+      getEnvironmentVariable("LANGCHAIN_SESSION");
     this.exampleId = exampleId;
-    this.client = client ?? new LangChainPlusClient({});
+    this.client = client ?? new Client({});
   }
 
   private async _convertToCreate(
     run: Run,
     example_id: string | undefined = undefined
   ): Promise<RunCreate> {
-    const runExtra = run.extra ?? {};
-    runExtra.runtime = await getRuntimeEnvironment();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { child_runs: _, ...restOfRun } = run;
-    restOfRun.extra = runExtra;
-    restOfRun.reference_example_id = restOfRun.parent_run_id
-      ? undefined
-      : example_id;
-    return { child_runs: [], session_name: this.sessionName, ...restOfRun };
+    return {
+      ...run,
+      extra: {
+        ...run.extra,
+        runtime: await getRuntimeEnvironment(),
+      },
+      child_runs: undefined,
+      session_name: this.projectName,
+      reference_example_id: run.parent_run_id ? undefined : example_id,
+    };
   }
 
   protected async persistRun(_run: Run): Promise<void> {}
@@ -63,10 +84,22 @@ export class LangChainTracer
       end_time: run.end_time,
       error: run.error,
       outputs: run.outputs,
-      parent_run_id: run.parent_run_id,
-      reference_example_id: run.reference_example_id,
+      events: run.events,
+      inputs: run.inputs,
     };
     await this.client.updateRun(run.id, runUpdate);
+  }
+
+  async onRetrieverStart(run: Run): Promise<void> {
+    await this._persistRunSingle(run);
+  }
+
+  async onRetrieverEnd(run: Run): Promise<void> {
+    await this._updateRunSingle(run);
+  }
+
+  async onRetrieverError(run: Run): Promise<void> {
+    await this._updateRunSingle(run);
   }
 
   async onLLMStart(run: Run): Promise<void> {

@@ -103,12 +103,12 @@ test("Test with chat prompts", async () => {
     pipelinePrompts: [
       {
         name: "foo",
-        prompt: ChatPromptTemplate.fromPromptMessages([
+        prompt: ChatPromptTemplate.fromMessages([
           HumanMessagePromptTemplate.fromTemplate(`{name} halpert`),
         ]),
       },
     ],
-    finalPrompt: ChatPromptTemplate.fromPromptMessages([
+    finalPrompt: ChatPromptTemplate.fromMessages([
       SystemMessagePromptTemplate.fromTemplate("What is your name?"),
       new MessagesPlaceholder("foo"),
     ]),
@@ -116,5 +116,5 @@ test("Test with chat prompts", async () => {
   const formattedPromptValue = await prompt.formatPromptValue({
     name: "pam",
   });
-  expect(formattedPromptValue.messages[1].text).toEqual("pam halpert");
+  expect(formattedPromptValue.messages[1].content).toEqual("pam halpert");
 });

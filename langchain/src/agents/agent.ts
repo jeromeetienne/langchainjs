@@ -6,9 +6,10 @@ import {
   AgentAction,
   AgentFinish,
   AgentStep,
-  BaseChatMessage,
+  BaseMessage,
   ChainValues,
 } from "../schema/index.js";
+import { Serializable } from "../load/serializable.js";
 import { StructuredTool, Tool } from "../tools/base.js";
 import {
   AgentActionOutputParser,
@@ -17,9 +18,16 @@ import {
   StoppingMethod,
 } from "./types.js";
 
+/**
+ * Record type for arguments passed to output parsers.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type OutputParserArgs = Record<string, any>;
 
+/**
+ * Error class for parse errors in LangChain. Contains information about
+ * the error message and the output that caused the error.
+ */
 class ParseError extends Error {
   output: string;
 
@@ -29,7 +37,11 @@ class ParseError extends Error {
   }
 }
 
-export abstract class BaseAgent {
+/**
+ * Abstract base class for agents in LangChain. Provides common
+ * functionality for agents, such as handling inputs and outputs.
+ */
+export abstract class BaseAgent extends Serializable {
   declare ToolType: StructuredTool;
 
   abstract get inputKeys(): string[];
@@ -84,6 +96,11 @@ export abstract class BaseAgent {
   }
 }
 
+/**
+ * Abstract base class for single action agents in LangChain. Extends the
+ * BaseAgent class and provides additional functionality specific to
+ * single action agents.
+ */
 export abstract class BaseSingleActionAgent extends BaseAgent {
   _agentActionType(): string {
     return "single" as const;
@@ -105,6 +122,11 @@ export abstract class BaseSingleActionAgent extends BaseAgent {
   ): Promise<AgentAction | AgentFinish>;
 }
 
+/**
+ * Abstract base class for multi-action agents in LangChain. Extends the
+ * BaseAgent class and provides additional functionality specific to
+ * multi-action agents.
+ */
 export abstract class BaseMultiActionAgent extends BaseAgent {
   _agentActionType(): string {
     return "multi" as const;
@@ -126,13 +148,23 @@ export abstract class BaseMultiActionAgent extends BaseAgent {
   ): Promise<AgentAction[] | AgentFinish>;
 }
 
+/**
+ * Interface for input data for creating a LLMSingleActionAgent.
+ */
 export interface LLMSingleActionAgentInput {
   llmChain: LLMChain;
   outputParser: AgentActionOutputParser;
   stop?: string[];
 }
 
+/**
+ * Class representing a single action agent using a LLMChain in LangChain.
+ * Extends the BaseSingleActionAgent class and provides methods for
+ * planning agent actions based on LLMChain outputs.
+ */
 export class LLMSingleActionAgent extends BaseSingleActionAgent {
+  lc_namespace = ["langchain", "agents"];
+
   llmChain: LLMChain;
 
   outputParser: AgentActionOutputParser;
@@ -140,7 +172,7 @@ export class LLMSingleActionAgent extends BaseSingleActionAgent {
   stop?: string[];
 
   constructor(input: LLMSingleActionAgentInput) {
-    super();
+    super(input);
     this.stop = input.stop;
     this.llmChain = input.llmChain;
     this.outputParser = input.outputParser;
@@ -179,6 +211,9 @@ export class LLMSingleActionAgent extends BaseSingleActionAgent {
   }
 }
 
+/**
+ * Interface for arguments used to create an agent in LangChain.
+ */
 export interface AgentArgs {
   outputParser?: AgentActionOutputParser;
 
@@ -200,7 +235,7 @@ export interface AgentArgs {
 export abstract class Agent extends BaseSingleActionAgent {
   llmChain: LLMChain;
 
-  outputParser: AgentActionOutputParser;
+  outputParser: AgentActionOutputParser | undefined;
 
   private _allowedTools?: string[] = undefined;
 
@@ -213,7 +248,7 @@ export abstract class Agent extends BaseSingleActionAgent {
   }
 
   constructor(input: AgentInput) {
-    super();
+    super(input);
     this.llmChain = input.llmChain;
     this._allowedTools = input.allowedTools;
     this.outputParser = input.outputParser;
@@ -290,7 +325,7 @@ export abstract class Agent extends BaseSingleActionAgent {
    */
   async constructScratchPad(
     steps: AgentStep[]
-  ): Promise<string | BaseChatMessage[]> {
+  ): Promise<string | BaseMessage[]> {
     return steps.reduce(
       (thoughts, { action, observation }) =>
         thoughts +
@@ -320,6 +355,9 @@ export abstract class Agent extends BaseSingleActionAgent {
     }
 
     const output = await this.llmChain.predict(newInputs, callbackManager);
+    if (!this.outputParser) {
+      throw new Error("Output parser not set");
+    }
     return this.outputParser.parse(output, callbackManager);
   }
 

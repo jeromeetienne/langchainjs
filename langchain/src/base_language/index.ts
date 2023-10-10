@@ -1,13 +1,27 @@
 import { type Tiktoken } from "js-tiktoken/lite";
+import type { OpenAI as OpenAIClient } from "openai";
+
 import {
-  BaseChatMessage,
+  BaseCache,
+  BaseMessage,
+  BaseMessageLike,
   BasePromptValue,
   LLMResult,
+  coerceMessageLikeToMessage,
 } from "../schema/index.js";
-import { CallbackManager, Callbacks } from "../callbacks/manager.js";
+import {
+  BaseCallbackConfig,
+  CallbackManager,
+  Callbacks,
+} from "../callbacks/manager.js";
 import { AsyncCaller, AsyncCallerParams } from "../util/async_caller.js";
 import { getModelNameForTiktoken } from "./count_tokens.js";
 import { encodingForModel } from "../util/tiktoken.js";
+import { Runnable } from "../schema/runnable/index.js";
+import { RunnableConfig } from "../schema/runnable/config.js";
+import { StringPromptValue } from "../prompts/base.js";
+import { ChatPromptValue } from "../prompts/chat.js";
+import { InMemoryCache } from "../cache/index.js";
 
 const getVerbosity = () => false;
 
@@ -20,12 +34,21 @@ export type SerializedLLM = {
 export interface BaseLangChainParams {
   verbose?: boolean;
   callbacks?: Callbacks;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 /**
  * Base class for language models, chains, tools.
  */
-export abstract class BaseLangChain implements BaseLangChainParams {
+export abstract class BaseLangChain<
+    RunInput,
+    RunOutput,
+    CallOptions extends RunnableConfig = RunnableConfig
+  >
+  extends Runnable<RunInput, RunOutput, CallOptions>
+  implements BaseLangChainParams
+{
   /**
    * Whether to print out response text.
    */
@@ -33,9 +56,23 @@ export abstract class BaseLangChain implements BaseLangChainParams {
 
   callbacks?: Callbacks;
 
+  tags?: string[];
+
+  metadata?: Record<string, unknown>;
+
+  get lc_attributes(): { [key: string]: undefined } | undefined {
+    return {
+      callbacks: undefined,
+      verbose: undefined,
+    };
+  }
+
   constructor(params: BaseLangChainParams) {
+    super(params);
     this.verbose = params.verbose ?? getVerbosity();
     this.callbacks = params.callbacks;
+    this.tags = params.tags ?? [];
+    this.metadata = params.metadata ?? {};
   }
 }
 
@@ -51,9 +88,11 @@ export interface BaseLanguageModelParams
    * @deprecated Use `callbacks` instead
    */
   callbackManager?: CallbackManager;
+
+  cache?: BaseCache | boolean;
 }
 
-export interface BaseLanguageModelCallOptions {
+export interface BaseLanguageModelCallOptions extends BaseCallbackConfig {
   /**
    * Stop tokens to use for this call.
    * If not provided, the default stop tokens for the model will be used.
@@ -68,24 +107,39 @@ export interface BaseLanguageModelCallOptions {
   /**
    * Abort signal for this call.
    * If provided, the call will be aborted when the signal is aborted.
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal
    */
   signal?: AbortSignal;
 }
 
+export interface BaseFunctionCallOptions extends BaseLanguageModelCallOptions {
+  function_call?: OpenAIClient.Chat.ChatCompletionCreateParams.FunctionCallOption;
+  functions?: OpenAIClient.Chat.ChatCompletionCreateParams.Function[];
+}
+
+export type BaseLanguageModelInput =
+  | BasePromptValue
+  | string
+  | BaseMessageLike[];
+
 /**
  * Base class for language models.
  */
-export abstract class BaseLanguageModel
-  extends BaseLangChain
+export abstract class BaseLanguageModel<
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    RunOutput = any,
+    CallOptions extends BaseLanguageModelCallOptions = BaseLanguageModelCallOptions
+  >
+  extends BaseLangChain<BaseLanguageModelInput, RunOutput, CallOptions>
   implements BaseLanguageModelParams
 {
-  declare CallOptions: BaseLanguageModelCallOptions;
+  declare CallOptions: CallOptions;
 
   /**
    * Keys that the language model accepts as call options.
    */
   get callKeys(): string[] {
-    return ["stop", "timeout", "signal"];
+    return ["stop", "timeout", "signal", "tags", "metadata", "callbacks"];
   }
 
   /**
@@ -94,31 +148,44 @@ export abstract class BaseLanguageModel
    */
   caller: AsyncCaller;
 
-  constructor(params: BaseLanguageModelParams) {
+  cache?: BaseCache;
+
+  constructor({
+    callbacks,
+    callbackManager,
+    ...params
+  }: BaseLanguageModelParams) {
     super({
-      verbose: params.verbose,
-      callbacks: params.callbacks ?? params.callbackManager,
+      callbacks: callbacks ?? callbackManager,
+      ...params,
     });
+    if (typeof params.cache === "object") {
+      this.cache = params.cache;
+    } else if (params.cache) {
+      this.cache = InMemoryCache.global();
+    } else {
+      this.cache = undefined;
+    }
     this.caller = new AsyncCaller(params ?? {});
   }
 
   abstract generatePrompt(
     promptValues: BasePromptValue[],
-    options?: string[] | this["CallOptions"],
+    options?: string[] | CallOptions,
     callbacks?: Callbacks
   ): Promise<LLMResult>;
 
   abstract predict(
     text: string,
-    options?: string[] | this["CallOptions"],
+    options?: string[] | CallOptions,
     callbacks?: Callbacks
   ): Promise<string>;
 
   abstract predictMessages(
-    messages: BaseChatMessage[],
-    options?: string[] | this["CallOptions"],
+    messages: BaseMessage[],
+    options?: string[] | CallOptions,
     callbacks?: Callbacks
-  ): Promise<BaseChatMessage>;
+  ): Promise<BaseMessage>;
 
   abstract _modelType(): string;
 
@@ -152,6 +219,18 @@ export abstract class BaseLanguageModel
     return numTokens;
   }
 
+  protected static _convertInputToPromptValue(
+    input: BaseLanguageModelInput
+  ): BasePromptValue {
+    if (typeof input === "string") {
+      return new StringPromptValue(input);
+    } else if (Array.isArray(input)) {
+      return new ChatPromptValue(input.map(coerceMessageLikeToMessage));
+    } else {
+      return input;
+    }
+  }
+
   /**
    * Get the identifying parameters of the LLM.
    */
@@ -161,6 +240,32 @@ export abstract class BaseLanguageModel
   }
 
   /**
+   * Create a unique cache key for a specific call to a specific language model.
+   * @param callOptions Call options for the model
+   * @returns A unique cache key.
+   */
+  protected _getSerializedCacheKeyParametersForCall(
+    callOptions: CallOptions
+  ): string {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: Record<string, any> = {
+      ...this._identifyingParams(),
+      ...callOptions,
+      _type: this._llmType(),
+      _model: this._modelType(),
+    };
+    const filteredEntries = Object.entries(params).filter(
+      ([_, value]) => value !== undefined
+    );
+    const serializedEntries = filteredEntries
+      .map(([key, value]) => `${key}:${JSON.stringify(value)}`)
+      .sort()
+      .join(",");
+    return serializedEntries;
+  }
+
+  /**
+   * @deprecated
    * Return a json-like object representing this LLM.
    */
   serialize(): SerializedLLM {
@@ -172,6 +277,7 @@ export abstract class BaseLanguageModel
   }
 
   /**
+   * @deprecated
    * Load an LLM from a json-like object describing it.
    */
   static async deserialize(data: SerializedLLM): Promise<BaseLanguageModel> {
@@ -183,14 +289,15 @@ export abstract class BaseLanguageModel
       openai: (await import("../chat_models/openai.js")).ChatOpenAI,
     }[_type];
     if (Cls === undefined) {
-      throw new Error(`Cannot load  LLM with type ${_type}`);
+      throw new Error(`Cannot load LLM with type ${_type}`);
     }
     return new Cls(rest);
   }
 }
 
 /*
- * Calculate max tokens for given model and prompt.
- * That is the model size - number of tokens in prompt.
+ * Export utility functions for token calculations:
+ * - calculateMaxTokens: Calculate max tokens for a given model and prompt (the model context size - tokens in prompt).
+ * - getModelContextSize: Get the context size for a specific model.
  */
-export { calculateMaxTokens } from "./count_tokens.js";
+export { calculateMaxTokens, getModelContextSize } from "./count_tokens.js";

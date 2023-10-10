@@ -13,6 +13,8 @@ module.exports = {
   },
   plugins: ["@typescript-eslint", "no-instanceof"],
   ignorePatterns: [
+    "src/util/@cfworker",
+    "src/util/fast-json-patch",
     ".eslintrc.cjs",
     "scripts",
     "node_modules",
@@ -58,6 +60,9 @@ module.exports = {
     "no-return-await": 0,
     "consistent-return": 0,
     "no-else-return": 0,
+    "func-names": 0,
+    "no-lonely-if": 0,
+    "prefer-rest-params": 0,
     "new-cap": ["error", { properties: false, capIsNew: false }],
   },
 };

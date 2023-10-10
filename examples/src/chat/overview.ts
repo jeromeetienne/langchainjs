@@ -8,7 +8,7 @@ import {
   MessagesPlaceholder,
   SystemMessagePromptTemplate,
 } from "langchain/prompts";
-import { HumanChatMessage, SystemChatMessage } from "langchain/schema";
+import { HumanMessage, SystemMessage } from "langchain/schema";
 import { SerpAPI } from "langchain/tools";
 
 export const run = async () => {
@@ -17,7 +17,7 @@ export const run = async () => {
   // Sending one message to the chat model, receiving one message back
 
   let response = await chat.call([
-    new HumanChatMessage(
+    new HumanMessage(
       "Translate this sentence from English to French. I love programming."
     ),
   ]);
@@ -27,10 +27,10 @@ export const run = async () => {
   // Sending an input made up of two messages to the chat model
 
   response = await chat.call([
-    new SystemChatMessage(
+    new SystemMessage(
       "You are a helpful assistant that translates English to French."
     ),
-    new HumanChatMessage("Translate: I love programming."),
+    new HumanMessage("Translate: I love programming."),
   ]);
 
   console.log(response);
@@ -39,18 +39,18 @@ export const run = async () => {
 
   const responseA = await chat.generate([
     [
-      new SystemChatMessage(
+      new SystemMessage(
         "You are a helpful assistant that translates English to French."
       ),
-      new HumanChatMessage(
+      new HumanMessage(
         "Translate this sentence from English to French. I love programming."
       ),
     ],
     [
-      new SystemChatMessage(
+      new SystemMessage(
         "You are a helpful assistant that translates English to French."
       ),
-      new HumanChatMessage(
+      new HumanMessage(
         "Translate this sentence from English to French. I love artificial intelligence."
       ),
     ],
@@ -60,7 +60,7 @@ export const run = async () => {
 
   // Using ChatPromptTemplate to encapsulate the reusable parts of the prompt
 
-  const translatePrompt = ChatPromptTemplate.fromPromptMessages([
+  const translatePrompt = ChatPromptTemplate.fromMessages([
     SystemMessagePromptTemplate.fromTemplate(
       "You are a helpful assistant that translates {input_language} to {output_language}."
     ),
@@ -95,7 +95,7 @@ export const run = async () => {
 
   // Next up, stateful chains that remember the conversation history
 
-  const chatPrompt = ChatPromptTemplate.fromPromptMessages([
+  const chatPrompt = ChatPromptTemplate.fromMessages([
     SystemMessagePromptTemplate.fromTemplate(
       "The following is a friendly conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it truthfully says it does not know."
     ),

@@ -22,7 +22,7 @@ import { BaseLanguageModel } from "../../base_language/index.js";
 import { AsymmetricStructuredOutputParser } from "../../output_parsers/structured.js";
 import { AttributeInfo } from "../../schema/query_constructor.js";
 
-export { QueryTransformer, TraverseType };
+export { QueryTransformer, type TraverseType };
 export {
   DEFAULT_EXAMPLES,
   DEFAULT_PREFIX,
@@ -41,47 +41,68 @@ const queryInputSchema = /* #__PURE__ */ z.object({
     .describe("logical condition statement for filtering documents"),
 });
 
+/**
+ * A class that extends AsymmetricStructuredOutputParser to parse
+ * structured query output.
+ */
 export class StructuredQueryOutputParser extends AsymmetricStructuredOutputParser<
   typeof queryInputSchema,
   StructuredQuery
 > {
-  constructor(
-    private parserFunction: (
-      query: string,
-      filter?: string
-    ) => Promise<StructuredQuery>
-  ) {
-    super(queryInputSchema);
+  lc_namespace = ["langchain", "chains", "query_constructor"];
+
+  queryTransformer: QueryTransformer;
+
+  constructor(fields: {
+    allowedComparators: Comparator[];
+    allowedOperators: Operator[];
+  }) {
+    super({ ...fields, inputSchema: queryInputSchema });
+
+    const { allowedComparators, allowedOperators } = fields;
+    this.queryTransformer = new QueryTransformer(
+      allowedComparators,
+      allowedOperators
+    );
   }
 
-  async outputProcessor(
-    input: z.infer<typeof queryInputSchema>
-  ): Promise<StructuredQuery> {
-    return this.parserFunction(input.query, input.filter);
+  /**
+   * Processes the output of a structured query.
+   * @param query The query string.
+   * @param filter The filter condition.
+   * @returns A Promise that resolves to a StructuredQuery instance.
+   */
+  async outputProcessor({
+    query,
+    filter,
+  }: z.infer<typeof queryInputSchema>): Promise<StructuredQuery> {
+    let myQuery = query;
+    if (myQuery.length === 0) {
+      myQuery = " ";
+    }
+    if (filter === "NO_FILTER" || filter === undefined) {
+      return new StructuredQuery(query);
+    } else {
+      const parsedFilter = await this.queryTransformer.parse(filter);
+      return new StructuredQuery(query, parsedFilter);
+    }
   }
 
+  /**
+   * Creates a new StructuredQueryOutputParser instance from the provided
+   * components.
+   * @param allowedComparators An array of allowed Comparator instances.
+   * @param allowedOperators An array of allowed Operator instances.
+   * @returns A new StructuredQueryOutputParser instance.
+   */
   static fromComponents(
     allowedComparators: Comparator[] = [],
     allowedOperators: Operator[] = []
   ) {
-    const queryTransformer = new QueryTransformer(
+    return new StructuredQueryOutputParser({
       allowedComparators,
-      allowedOperators
-    );
-    return new StructuredQueryOutputParser(
-      async (query: string, filter?: string) => {
-        let myQuery = query;
-        if (myQuery.length === 0) {
-          myQuery = " ";
-        }
-        if (filter === "NO_FILTER" || filter === undefined) {
-          return new StructuredQuery(query);
-        } else {
-          const parsedFilter = await queryTransformer.parse(filter);
-          return new StructuredQuery(query, parsedFilter);
-        }
-      }
-    );
+      allowedOperators,
+    });
   }
 }
 
@@ -141,6 +162,9 @@ function _getPrompt(
   });
 }
 
+/**
+ * A type that represents options for the query constructor chain.
+ */
 export type QueryConstructorChainOptions = {
   llm: BaseLanguageModel;
   documentContents: string;

@@ -4,11 +4,15 @@ import { encodingForModel } from "../util/tiktoken.js";
 // https://www.npmjs.com/package/js-tiktoken
 
 export const getModelNameForTiktoken = (modelName: string): TiktokenModel => {
+  if (modelName.startsWith("gpt-3.5-turbo-16k")) {
+    return "gpt-3.5-turbo-16k";
+  }
+
   if (modelName.startsWith("gpt-3.5-turbo-")) {
     return "gpt-3.5-turbo";
   }
 
-  if (modelName.startsWith("gpt-4-32k-")) {
+  if (modelName.startsWith("gpt-4-32k")) {
     return "gpt-4-32k";
   }
 
@@ -30,6 +34,8 @@ export const getEmbeddingContextSize = (modelName?: string): number => {
 
 export const getModelContextSize = (modelName: string): number => {
   switch (getModelNameForTiktoken(modelName)) {
+    case "gpt-3.5-turbo-16k":
+      return 16384;
     case "gpt-3.5-turbo":
       return 4096;
     case "gpt-4-32k":
@@ -62,15 +68,20 @@ export const calculateMaxTokens = async ({
   prompt,
   modelName,
 }: CalculateMaxTokenProps) => {
-  // fallback to approximate calculation if tiktoken is not available
-  let numTokens = Math.ceil(prompt.length / 4);
+  let numTokens;
 
   try {
-    numTokens = (await encodingForModel(modelName)).encode(prompt).length;
+    numTokens = (
+      await encodingForModel(getModelNameForTiktoken(modelName))
+    ).encode(prompt).length;
   } catch (error) {
     console.warn(
       "Failed to calculate number of tokens, falling back to approximate count"
     );
+
+    // fallback to approximate calculation if tiktoken is not available
+    // each token is ~4 characters: https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them#
+    numTokens = Math.ceil(prompt.length / 4);
   }
 
   const maxTokens = getModelContextSize(modelName);

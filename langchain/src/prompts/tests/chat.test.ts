@@ -9,13 +9,14 @@ import {
 } from "../chat.js";
 import { PromptTemplate } from "../prompt.js";
 import {
-  AIChatMessage,
+  AIMessage,
   ChatMessage,
-  HumanChatMessage,
-  SystemChatMessage,
+  HumanMessage,
+  SystemMessage,
+  FunctionMessage,
 } from "../../schema/index.js";
 
-function createChatPromptTemplate(): ChatPromptTemplate {
+function createChatPromptTemplate() {
   const systemPrompt = new PromptTemplate({
     template: "Here's some context: {context}",
     inputVariables: ["context"],
@@ -32,15 +33,25 @@ function createChatPromptTemplate(): ChatPromptTemplate {
     template: "I'm a generic message. I'm {foo}. I'm {bar}.",
     inputVariables: ["foo", "bar"],
   });
-  return new ChatPromptTemplate({
-    promptMessages: [
-      new SystemMessagePromptTemplate(systemPrompt),
-      new HumanMessagePromptTemplate(userPrompt),
-      new AIMessagePromptTemplate(aiPrompt),
-      new ChatMessagePromptTemplate(genericPrompt, "test"),
-    ],
-    inputVariables: ["context", "foo", "bar"],
-  });
+  // return new ChatPromptTemplate({
+  //   promptMessages: [
+  //     new SystemMessagePromptTemplate(systemPrompt),
+  //     new HumanMessagePromptTemplate(userPrompt),
+  //     new AIMessagePromptTemplate({ prompt: aiPrompt }),
+  //     new ChatMessagePromptTemplate(genericPrompt, "test"),
+  //   ],
+  //   inputVariables: ["context", "foo", "bar"],
+  // });
+  return ChatPromptTemplate.fromMessages<{
+    foo: string;
+    bar: string;
+    context: string;
+  }>([
+    new SystemMessagePromptTemplate(systemPrompt),
+    new HumanMessagePromptTemplate(userPrompt),
+    new AIMessagePromptTemplate({ prompt: aiPrompt }),
+    new ChatMessagePromptTemplate(genericPrompt, "test"),
+  ]);
 }
 
 test("Test format", async () => {
@@ -49,25 +60,20 @@ test("Test format", async () => {
     context: "This is a context",
     foo: "Foo",
     bar: "Bar",
+    unused: "extra",
   });
   expect(messages.toChatMessages()).toEqual([
-    new SystemChatMessage("Here's some context: This is a context"),
-    new HumanChatMessage(
-      "Hello Foo, I'm Bar. Thanks for the This is a context"
-    ),
-    new AIChatMessage("I'm an AI. I'm Foo. I'm Bar."),
+    new SystemMessage("Here's some context: This is a context"),
+    new HumanMessage("Hello Foo, I'm Bar. Thanks for the This is a context"),
+    new AIMessage("I'm an AI. I'm Foo. I'm Bar."),
     new ChatMessage("I'm a generic message. I'm Foo. I'm Bar.", "test"),
   ]);
-});
-
-test("Test serialize", async () => {
-  const chatPrompt = createChatPromptTemplate();
-  expect(chatPrompt.serialize()).toMatchSnapshot();
 });
 
 test("Test format with invalid input values", async () => {
   const chatPrompt = createChatPromptTemplate();
   await expect(
+    // @ts-expect-error TS compiler should flag missing input variables
     chatPrompt.formatPromptValue({
       context: "This is a context",
       foo: "Foo",
@@ -111,7 +117,7 @@ test("Test format with invalid input variables", async () => {
   );
 });
 
-test("Test fromPromptMessages", async () => {
+test("Test fromMessages", async () => {
   const systemPrompt = new PromptTemplate({
     template: "Here's some context: {context}",
     inputVariables: ["context"],
@@ -120,7 +126,8 @@ test("Test fromPromptMessages", async () => {
     template: "Hello {foo}, I'm {bar}",
     inputVariables: ["foo", "bar"],
   });
-  const chatPrompt = ChatPromptTemplate.fromPromptMessages([
+  // TODO: Fix autocomplete for the fromMessages method
+  const chatPrompt = ChatPromptTemplate.fromMessages([
     new SystemMessagePromptTemplate(systemPrompt),
     new HumanMessagePromptTemplate(userPrompt),
   ]);
@@ -131,12 +138,37 @@ test("Test fromPromptMessages", async () => {
     bar: "Bar",
   });
   expect(messages.toChatMessages()).toEqual([
-    new SystemChatMessage("Here's some context: This is a context"),
-    new HumanChatMessage("Hello Foo, I'm Bar"),
+    new SystemMessage("Here's some context: This is a context"),
+    new HumanMessage("Hello Foo, I'm Bar"),
   ]);
 });
 
-test("Test fromPromptMessages is composable", async () => {
+test("Test fromMessages with a variety of ways to declare prompt messages", async () => {
+  const systemPrompt = new PromptTemplate({
+    template: "Here's some context: {context}",
+    inputVariables: ["context"],
+  });
+  // TODO: Fix autocomplete for the fromMessages method
+  const chatPrompt = ChatPromptTemplate.fromMessages([
+    new SystemMessagePromptTemplate(systemPrompt),
+    "Hello {foo}, I'm {bar}",
+    ["assistant", "Nice to meet you, {bar}!"],
+    ["human", "Thanks {foo}!!"],
+  ]);
+  const messages = await chatPrompt.formatPromptValue({
+    context: "This is a context",
+    foo: "Foo",
+    bar: "Bar",
+  });
+  expect(messages.toChatMessages()).toEqual([
+    new SystemMessage("Here's some context: This is a context"),
+    new HumanMessage("Hello Foo, I'm Bar"),
+    new AIMessage("Nice to meet you, Bar!"),
+    new HumanMessage("Thanks Foo!!"),
+  ]);
+});
+
+test("Test fromMessages with an extra input variable", async () => {
   const systemPrompt = new PromptTemplate({
     template: "Here's some context: {context}",
     inputVariables: ["context"],
@@ -145,11 +177,38 @@ test("Test fromPromptMessages is composable", async () => {
     template: "Hello {foo}, I'm {bar}",
     inputVariables: ["foo", "bar"],
   });
-  const chatPromptInner = ChatPromptTemplate.fromPromptMessages([
+  // TODO: Fix autocomplete for the fromMessages method
+  const chatPrompt = ChatPromptTemplate.fromMessages([
     new SystemMessagePromptTemplate(systemPrompt),
     new HumanMessagePromptTemplate(userPrompt),
   ]);
-  const chatPrompt = ChatPromptTemplate.fromPromptMessages([
+  expect(chatPrompt.inputVariables).toEqual(["context", "foo", "bar"]);
+  const messages = await chatPrompt.formatPromptValue({
+    context: "This is a context",
+    foo: "Foo",
+    bar: "Bar",
+    unused: "No problemo!",
+  });
+  expect(messages.toChatMessages()).toEqual([
+    new SystemMessage("Here's some context: This is a context"),
+    new HumanMessage("Hello Foo, I'm Bar"),
+  ]);
+});
+
+test("Test fromMessages is composable", async () => {
+  const systemPrompt = new PromptTemplate({
+    template: "Here's some context: {context}",
+    inputVariables: ["context"],
+  });
+  const userPrompt = new PromptTemplate({
+    template: "Hello {foo}, I'm {bar}",
+    inputVariables: ["foo", "bar"],
+  });
+  const chatPromptInner = ChatPromptTemplate.fromMessages([
+    new SystemMessagePromptTemplate(systemPrompt),
+    new HumanMessagePromptTemplate(userPrompt),
+  ]);
+  const chatPrompt = ChatPromptTemplate.fromMessages([
     chatPromptInner,
     AIMessagePromptTemplate.fromTemplate("I'm an AI. I'm {foo}. I'm {bar}."),
   ]);
@@ -160,13 +219,13 @@ test("Test fromPromptMessages is composable", async () => {
     bar: "Bar",
   });
   expect(messages.toChatMessages()).toEqual([
-    new SystemChatMessage("Here's some context: This is a context"),
-    new HumanChatMessage("Hello Foo, I'm Bar"),
-    new AIChatMessage("I'm an AI. I'm Foo. I'm Bar."),
+    new SystemMessage("Here's some context: This is a context"),
+    new HumanMessage("Hello Foo, I'm Bar"),
+    new AIMessage("I'm an AI. I'm Foo. I'm Bar."),
   ]);
 });
 
-test("Test fromPromptMessages is composable with partial vars", async () => {
+test("Test fromMessages is composable with partial vars", async () => {
   const systemPrompt = new PromptTemplate({
     template: "Here's some context: {context}",
     inputVariables: ["context"],
@@ -175,11 +234,11 @@ test("Test fromPromptMessages is composable with partial vars", async () => {
     template: "Hello {foo}, I'm {bar}",
     inputVariables: ["foo", "bar"],
   });
-  const chatPromptInner = ChatPromptTemplate.fromPromptMessages([
+  const chatPromptInner = ChatPromptTemplate.fromMessages([
     new SystemMessagePromptTemplate(systemPrompt),
     new HumanMessagePromptTemplate(userPrompt),
   ]);
-  const chatPrompt = ChatPromptTemplate.fromPromptMessages([
+  const chatPrompt = ChatPromptTemplate.fromMessages([
     await chatPromptInner.partial({
       context: "This is a context",
       foo: "Foo",
@@ -191,17 +250,17 @@ test("Test fromPromptMessages is composable with partial vars", async () => {
     bar: "Bar",
   });
   expect(messages.toChatMessages()).toEqual([
-    new SystemChatMessage("Here's some context: This is a context"),
-    new HumanChatMessage("Hello Foo, I'm Bar"),
-    new AIChatMessage("I'm an AI. I'm Foo. I'm Bar."),
+    new SystemMessage("Here's some context: This is a context"),
+    new HumanMessage("Hello Foo, I'm Bar"),
+    new AIMessage("I'm an AI. I'm Foo. I'm Bar."),
   ]);
 });
 
 test("Test SimpleMessagePromptTemplate", async () => {
   const prompt = new MessagesPlaceholder("foo");
-  const values = { foo: [new HumanChatMessage("Hello Foo, I'm Bar")] };
+  const values = { foo: [new HumanMessage("Hello Foo, I'm Bar")] };
   const messages = await prompt.formatMessages(values);
-  expect(messages).toEqual([new HumanChatMessage("Hello Foo, I'm Bar")]);
+  expect(messages).toEqual([new HumanMessage("Hello Foo, I'm Bar")]);
 });
 
 test("Test using partial", async () => {
@@ -223,6 +282,25 @@ test("Test using partial", async () => {
   expect(partialPrompt.inputVariables).toEqual(["bar"]);
 
   expect(await partialPrompt.format({ bar: "baz" })).toMatchInlineSnapshot(
-    `"[{"type":"human","data":{"content":"foobaz"}}]"`
+    `"Human: foobaz"`
   );
+});
+
+test("Test BaseMessage", async () => {
+  const prompt = ChatPromptTemplate.fromMessages([
+    new SystemMessage("You are a chatbot {mock_variable}"),
+    AIMessagePromptTemplate.fromTemplate("{name} is my name."),
+    new FunctionMessage({ content: "{}", name: "get_weather" }),
+  ]);
+
+  const messages = await prompt.formatPromptValue({ name: "Bob" });
+
+  expect(prompt.inputVariables).toEqual(["name"]);
+  expect(prompt.partialVariables).toEqual({});
+
+  expect(messages.toChatMessages()).toEqual([
+    new SystemMessage("You are a chatbot {mock_variable}"),
+    new AIMessage("Bob is my name."),
+    new FunctionMessage({ content: "{}", name: "get_weather" }),
+  ]);
 });

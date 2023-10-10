@@ -1,11 +1,15 @@
 import type * as tiktoken from "js-tiktoken";
 import { Document } from "./document.js";
 import { getEncoding } from "./util/tiktoken.js";
+import { BaseDocumentTransformer } from "./schema/document.js";
 
 export interface TextSplitterParams {
   chunkSize: number;
   chunkOverlap: number;
   keepSeparator: boolean;
+  lengthFunction?:
+    | ((text: string) => number)
+    | ((text: string) => Promise<number>);
 }
 
 export type TextSplitterChunkHeaderOptions = {
@@ -14,20 +18,39 @@ export type TextSplitterChunkHeaderOptions = {
   appendChunkOverlapHeader?: boolean;
 };
 
-export abstract class TextSplitter implements TextSplitterParams {
+export abstract class TextSplitter
+  extends BaseDocumentTransformer
+  implements TextSplitterParams
+{
+  lc_namespace = ["langchain", "document_transformers", "text_splitters"];
+
   chunkSize = 1000;
 
   chunkOverlap = 200;
 
   keepSeparator = false;
 
+  lengthFunction:
+    | ((text: string) => number)
+    | ((text: string) => Promise<number>);
+
   constructor(fields?: Partial<TextSplitterParams>) {
+    super(fields);
     this.chunkSize = fields?.chunkSize ?? this.chunkSize;
     this.chunkOverlap = fields?.chunkOverlap ?? this.chunkOverlap;
     this.keepSeparator = fields?.keepSeparator ?? this.keepSeparator;
+    this.lengthFunction =
+      fields?.lengthFunction ?? ((text: string) => text.length);
     if (this.chunkOverlap >= this.chunkSize) {
       throw new Error("Cannot have chunkOverlap >= chunkSize");
     }
+  }
+
+  async transformDocuments(
+    documents: Document[],
+    chunkHeaderOptions: TextSplitterChunkHeaderOptions = {}
+  ): Promise<Document[]> {
+    return this.splitDocuments(documents, chunkHeaderOptions);
   }
 
   abstract splitText(text: string): Promise<string[]>;
@@ -69,27 +92,42 @@ export abstract class TextSplitter implements TextSplitterParams {
       const text = texts[i];
       let lineCounterIndex = 1;
       let prevChunk = null;
+      let indexPrevChunk = -1;
       for (const chunk of await this.splitText(text)) {
         let pageContent = chunkHeader;
 
         // we need to count the \n that are in the text before getting removed by the splitting
-        let numberOfIntermediateNewLines = 0;
-        if (prevChunk) {
-          const indexChunk = text.indexOf(chunk);
-          const indexEndPrevChunk = text.indexOf(prevChunk) + prevChunk.length;
-          const removedNewlinesFromSplittingText = text.slice(
-            indexEndPrevChunk,
+        const indexChunk = text.indexOf(chunk, indexPrevChunk + 1);
+        if (prevChunk === null) {
+          const newLinesBeforeFirstChunk = this.numberOfNewLines(
+            text,
+            0,
             indexChunk
           );
-          numberOfIntermediateNewLines = (
-            removedNewlinesFromSplittingText.match(/\n/g) || []
-          ).length;
+          lineCounterIndex += newLinesBeforeFirstChunk;
+        } else {
+          const indexEndPrevChunk =
+            indexPrevChunk + (await this.lengthFunction(prevChunk));
+          if (indexEndPrevChunk < indexChunk) {
+            const numberOfIntermediateNewLines = this.numberOfNewLines(
+              text,
+              indexEndPrevChunk,
+              indexChunk
+            );
+            lineCounterIndex += numberOfIntermediateNewLines;
+          } else if (indexEndPrevChunk > indexChunk) {
+            const numberOfIntermediateNewLines = this.numberOfNewLines(
+              text,
+              indexChunk,
+              indexEndPrevChunk
+            );
+            lineCounterIndex -= numberOfIntermediateNewLines;
+          }
           if (appendChunkOverlapHeader) {
             pageContent += chunkOverlapHeader;
           }
         }
-        lineCounterIndex += numberOfIntermediateNewLines;
-        const newLinesCount = (chunk.match(/\n/g) || []).length;
+        const newLinesCount = this.numberOfNewLines(chunk);
 
         const loc =
           _metadatas[i].loc && typeof _metadatas[i].loc === "object"
@@ -113,9 +151,15 @@ export abstract class TextSplitter implements TextSplitterParams {
         );
         lineCounterIndex += newLinesCount;
         prevChunk = chunk;
+        indexPrevChunk = indexChunk;
       }
     }
     return documents;
+  }
+
+  private numberOfNewLines(text: string, start?: number, end?: number) {
+    const textSection = text.slice(start, end);
+    return (textSection.match(/\n/g) || []).length;
   }
 
   async splitDocuments(
@@ -135,12 +179,12 @@ export abstract class TextSplitter implements TextSplitterParams {
     return text === "" ? null : text;
   }
 
-  mergeSplits(splits: string[], separator: string): string[] {
+  async mergeSplits(splits: string[], separator: string): Promise<string[]> {
     const docs: string[] = [];
     const currentDoc: string[] = [];
     let total = 0;
     for (const d of splits) {
-      const _len = d.length;
+      const _len = await this.lengthFunction(d);
       if (
         total + _len + (currentDoc.length > 0 ? separator.length : 0) >
         this.chunkSize
@@ -163,7 +207,7 @@ which is longer than the specified ${this.chunkSize}`
             total > this.chunkOverlap ||
             (total + _len > this.chunkSize && total > 0)
           ) {
-            total -= currentDoc[0].length;
+            total -= await this.lengthFunction(currentDoc[0]);
             currentDoc.shift();
           }
         }
@@ -187,6 +231,10 @@ export class CharacterTextSplitter
   extends TextSplitter
   implements CharacterTextSplitterParams
 {
+  static lc_name() {
+    return "CharacterTextSplitter";
+  }
+
   separator = "\n\n";
 
   constructor(fields?: Partial<CharacterTextSplitterParams>) {
@@ -222,6 +270,7 @@ export const SupportedTextSplitterLanguages = [
   "markdown",
   "latex",
   "html",
+  "sol",
 ] as const;
 
 export type SupportedTextSplitterLanguage =
@@ -231,6 +280,10 @@ export class RecursiveCharacterTextSplitter
   extends TextSplitter
   implements RecursiveCharacterTextSplitterParams
 {
+  static lc_name() {
+    return "RecursiveCharacterTextSplitter";
+  }
+
   separators: string[] = ["\n\n", "\n", " ", ""];
 
   constructor(fields?: Partial<RecursiveCharacterTextSplitterParams>) {
@@ -265,11 +318,11 @@ export class RecursiveCharacterTextSplitter
     let goodSplits: string[] = [];
     const _separator = this.keepSeparator ? "" : separator;
     for (const s of splits) {
-      if (s.length < this.chunkSize) {
+      if ((await this.lengthFunction(s)) < this.chunkSize) {
         goodSplits.push(s);
       } else {
         if (goodSplits.length) {
-          const mergedText = this.mergeSplits(goodSplits, _separator);
+          const mergedText = await this.mergeSplits(goodSplits, _separator);
           finalChunks.push(...mergedText);
           goodSplits = [];
         }
@@ -282,7 +335,7 @@ export class RecursiveCharacterTextSplitter
       }
     }
     if (goodSplits.length) {
-      const mergedText = this.mergeSplits(goodSplits, _separator);
+      const mergedText = await this.mergeSplits(goodSplits, _separator);
       finalChunks.push(...mergedText);
     }
     return finalChunks;
@@ -294,7 +347,7 @@ export class RecursiveCharacterTextSplitter
 
   static fromLanguage(
     language: SupportedTextSplitterLanguage,
-    options: Partial<RecursiveCharacterTextSplitterParams>
+    options?: Partial<RecursiveCharacterTextSplitterParams>
   ) {
     return new RecursiveCharacterTextSplitter({
       ...options,
@@ -617,6 +670,36 @@ export class RecursiveCharacterTextSplitter
         " ",
         "",
       ];
+    } else if (language === "sol") {
+      return [
+        // Split along compiler informations definitions
+        "\npragma ",
+        "\nusing ",
+        // Split along contract definitions
+        "\ncontract ",
+        "\ninterface ",
+        "\nlibrary ",
+        // Split along method definitions
+        "\nconstructor ",
+        "\ntype ",
+        "\nfunction ",
+        "\nevent ",
+        "\nmodifier ",
+        "\nerror ",
+        "\nstruct ",
+        "\nenum ",
+        // Split along control flow statements
+        "\nif ",
+        "\nfor ",
+        "\nwhile ",
+        "\ndo while ",
+        "\nassembly ",
+        // Split by the normal type of lines
+        "\n\n",
+        "\n",
+        " ",
+        "",
+      ];
     } else {
       throw new Error(`Language ${language} is not supported.`);
     }
@@ -636,6 +719,10 @@ export class TokenTextSplitter
   extends TextSplitter
   implements TokenTextSplitterParams
 {
+  static lc_name() {
+    return "TokenTextSplitter";
+  }
+
   encodingName: tiktoken.TiktokenEncoding;
 
   allowedSpecial: "all" | Array<string>;

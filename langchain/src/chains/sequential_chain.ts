@@ -14,6 +14,9 @@ function formatSet(input: Set<string>) {
     .join(", ");
 }
 
+/**
+ * Interface for the input parameters of the SequentialChain class.
+ */
 export interface SequentialChainInput extends ChainInputs {
   /** Array of chains to run as a sequence. The chains are run in order they appear in the array. */
   chains: BaseChain[];
@@ -29,6 +32,10 @@ export interface SequentialChainInput extends ChainInputs {
  * Chain where the outputs of one chain feed directly into next.
  */
 export class SequentialChain extends BaseChain implements SequentialChainInput {
+  static lc_name() {
+    return "SequentialChain";
+  }
+
   chains: BaseChain[];
 
   inputVariables: string[];
@@ -79,7 +86,12 @@ export class SequentialChain extends BaseChain implements SequentialChainInput {
 
     const availableKeys = union(inputKeysSet, memoryKeysSet);
     for (const chain of this.chains) {
-      const missingKeys = difference(new Set(chain.inputKeys), availableKeys);
+      let missingKeys = difference(new Set(chain.inputKeys), availableKeys);
+
+      if (chain.memory) {
+        missingKeys = difference(missingKeys, new Set(chain.memory.memoryKeys));
+      }
+
       if (missingKeys.size > 0) {
         throw new Error(
           `Missing variables for chain "${chain._chainType()}": ${formatSet(
@@ -131,8 +143,13 @@ export class SequentialChain extends BaseChain implements SequentialChainInput {
   ): Promise<ChainValues> {
     let input: ChainValues = {};
     const allChainValues: ChainValues = values;
+    let i = 0;
     for (const chain of this.chains) {
-      input = await chain.call(allChainValues, runManager?.getChild());
+      i += 1;
+      input = await chain.call(
+        allChainValues,
+        runManager?.getChild(`step_${i}`)
+      );
       for (const key of Object.keys(input)) {
         allChainValues[key] = input[key];
       }
@@ -175,6 +192,9 @@ export class SequentialChain extends BaseChain implements SequentialChainInput {
   }
 }
 
+/**
+ * Interface for the input parameters of the SimpleSequentialChain class.
+ */
 export interface SimpleSequentialChainInput extends ChainInputs {
   /** Array of chains to run as a sequence. The chains are run in order they appear in the array. */
   chains: Array<BaseChain>;
@@ -222,6 +242,10 @@ export class SimpleSequentialChain
   extends BaseChain
   implements SimpleSequentialChainInput
 {
+  static lc_name() {
+    return "SimpleSequentialChain";
+  }
+
   chains: Array<BaseChain>;
 
   inputKey = "input";
@@ -239,11 +263,7 @@ export class SimpleSequentialChain
   }
 
   constructor(fields: SimpleSequentialChainInput) {
-    super(
-      fields.memory,
-      fields.verbose,
-      fields.callbacks ?? fields.callbackManager
-    );
+    super(fields);
     this.chains = fields.chains;
     this.trimOutputs = fields.trimOutputs ?? false;
     this._validateChains();
@@ -252,7 +272,11 @@ export class SimpleSequentialChain
   /** @ignore */
   _validateChains() {
     for (const chain of this.chains) {
-      if (chain.inputKeys.length !== 1) {
+      if (
+        chain.inputKeys.filter(
+          (k) => !chain.memory?.memoryKeys.includes(k) ?? true
+        ).length !== 1
+      ) {
         throw new Error(
           `Chains used in SimpleSequentialChain should all have one input, got ${
             chain.inputKeys.length
@@ -275,8 +299,15 @@ export class SimpleSequentialChain
     runManager?: CallbackManagerForChainRun
   ): Promise<ChainValues> {
     let input: string = values[this.inputKey];
+    let i = 0;
     for (const chain of this.chains) {
-      input = await chain.run(input, runManager?.getChild());
+      i += 1;
+      input = (
+        await chain.call(
+          { [chain.inputKeys[0]]: input, signal: values.signal },
+          runManager?.getChild(`step_${i}`)
+        )
+      )[chain.outputKeys[0]];
       if (this.trimOutputs) {
         input = input.trim();
       }

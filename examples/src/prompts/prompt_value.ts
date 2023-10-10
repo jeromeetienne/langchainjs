@@ -26,14 +26,14 @@ export const run = async () => {
   /*
     {
         responseAMessages: [
-            HumanChatMessage {
+            HumanMessage {
                 text: 'What is a good name for a company that makes colorful socks?'
             }
         ]
     }
     */
 
-  const chatPrompt = ChatPromptTemplate.fromPromptMessages([
+  const chatPrompt = ChatPromptTemplate.fromMessages([
     SystemMessagePromptTemplate.fromTemplate(
       "You are a helpful assistant that translates {input_language} to {output_language}."
     ),
@@ -59,10 +59,10 @@ export const run = async () => {
   /*
     {
         responseBMessages: [
-            SystemChatMessage {
+            SystemMessage {
                 text: 'You are a helpful assistant that translates English to French.'
             },
-            HumanChatMessage { text: 'I love programming.' }
+            HumanMessage { text: 'I love programming.' }
         ]
     }
     */

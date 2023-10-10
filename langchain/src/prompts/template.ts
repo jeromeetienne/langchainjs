@@ -1,7 +1,15 @@
 import { InputValues } from "../schema/index.js";
 
-export type TemplateFormat = "f-string" | "jinja2";
+/**
+ * Type that specifies the format of a template. Only
+ * "f-string" is supported currently.
+ */
+export type TemplateFormat = "f-string";
 
+/**
+ * Type that represents a node in a parsed format string. It can be either
+ * a literal text or a variable name.
+ */
 type ParsedFStringNode =
   | { type: "literal"; text: string }
   | { type: "variable"; name: string };
@@ -68,18 +76,25 @@ export const interpolateFString = (template: string, values: InputValues) =>
     return res + node.text;
   }, "");
 
+/**
+ * Type that represents a function that takes a template string and a set
+ * of input values, and returns a string where all variables in the
+ * template have been replaced with their corresponding values.
+ */
 type Interpolator = (template: string, values: InputValues) => string;
 
+/**
+ * Type that represents a function that takes a template string and
+ * returns an array of `ParsedFStringNode`.
+ */
 type Parser = (template: string) => ParsedFStringNode[];
 
 export const DEFAULT_FORMATTER_MAPPING: Record<TemplateFormat, Interpolator> = {
   "f-string": interpolateFString,
-  jinja2: (_: string, __: InputValues) => "",
 };
 
 export const DEFAULT_PARSER_MAPPING: Record<TemplateFormat, Parser> = {
   "f-string": parseFString,
-  jinja2: (_: string) => [],
 };
 
 export const renderTemplate = (
@@ -109,7 +124,8 @@ export const checkValidTemplate = (
       return acc;
     }, {} as Record<string, string>);
     renderTemplate(template, templateFormat, dummyInputs);
-  } catch {
-    throw new Error("Invalid prompt schema.");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (e: any) {
+    throw new Error(`Invalid prompt schema: ${e.message}`);
   }
 };

@@ -1,24 +1,42 @@
+/* eslint-disable no-process-env */
 import * as uuid from "uuid";
 import flatten from "flat";
+
+import {
+  RecordMetadata,
+  PineconeRecord,
+  Index as PineconeIndex,
+} from "@pinecone-database/pinecone";
 
 import { VectorStore } from "./base.js";
 import { Embeddings } from "../embeddings/base.js";
 import { Document } from "../document.js";
+import { AsyncCaller } from "../util/async_caller.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-types, @typescript-eslint/no-explicit-any
 type PineconeMetadata = Record<string, any>;
 
-type VectorOperationsApi = ReturnType<
-  import("@pinecone-database/pinecone").PineconeClient["Index"]
->;
-
 export interface PineconeLibArgs {
-  pineconeIndex: VectorOperationsApi;
+  pineconeIndex: PineconeIndex;
   textKey?: string;
   namespace?: string;
   filter?: PineconeMetadata;
 }
 
+/**
+ * Type that defines the parameters for the delete operation in the
+ * PineconeStore class. It includes ids, deleteAll flag, and namespace.
+ */
+export type PineconeDeleteParams = {
+  ids?: string[];
+  deleteAll?: boolean;
+  namespace?: string;
+};
+
+/**
+ * Class that extends the VectorStore class and provides methods to
+ * interact with the Pinecone vector database.
+ */
 export class PineconeStore extends VectorStore {
   declare FilterType: PineconeMetadata;
 
@@ -26,34 +44,60 @@ export class PineconeStore extends VectorStore {
 
   namespace?: string;
 
-  pineconeIndex: VectorOperationsApi;
+  pineconeIndex: PineconeIndex;
 
   filter?: PineconeMetadata;
+
+  caller: AsyncCaller;
+
+  _vectorstoreType(): string {
+    return "pinecone";
+  }
 
   constructor(embeddings: Embeddings, args: PineconeLibArgs) {
     super(embeddings, args);
 
     this.embeddings = embeddings;
-    this.namespace = args.namespace;
-    this.pineconeIndex = args.pineconeIndex;
-    this.textKey = args.textKey ?? "text";
-    this.filter = args.filter;
+    const { namespace, pineconeIndex, textKey, filter, ...asyncCallerArgs } =
+      args;
+    this.namespace = namespace;
+    this.pineconeIndex = pineconeIndex;
+    this.textKey = textKey ?? "text";
+    this.filter = filter;
+    this.caller = new AsyncCaller(asyncCallerArgs);
   }
 
-  async addDocuments(documents: Document[], ids?: string[]): Promise<void> {
+  /**
+   * Method that adds documents to the Pinecone database.
+   * @param documents Array of documents to add to the Pinecone database.
+   * @param options Optional ids for the documents.
+   * @returns Promise that resolves with the ids of the added documents.
+   */
+  async addDocuments(
+    documents: Document[],
+    options?: { ids?: string[] } | string[]
+  ) {
     const texts = documents.map(({ pageContent }) => pageContent);
     return this.addVectors(
       await this.embeddings.embedDocuments(texts),
       documents,
-      ids
+      options
     );
   }
 
+  /**
+   * Method that adds vectors to the Pinecone database.
+   * @param vectors Array of vectors to add to the Pinecone database.
+   * @param documents Array of documents associated with the vectors.
+   * @param options Optional ids for the vectors.
+   * @returns Promise that resolves with the ids of the added vectors.
+   */
   async addVectors(
     vectors: number[][],
     documents: Document[],
-    ids?: string[]
-  ): Promise<void> {
+    options?: { ids?: string[] } | string[]
+  ) {
+    const ids = Array.isArray(options) ? options : options?.ids;
     const documentIds = ids == null ? documents.map(() => uuid.v4()) : ids;
     const pineconeVectors = vectors.map((values, idx) => {
       // Pinecone doesn't support nested objects, so we flatten them
@@ -93,22 +137,49 @@ export class PineconeStore extends VectorStore {
         id: documentIds[idx],
         metadata,
         values,
-      };
+      } as PineconeRecord<RecordMetadata>;
     });
 
+    const namespace = this.pineconeIndex.namespace(this.namespace ?? "");
     // Pinecone recommends a limit of 100 vectors per upsert request
     const chunkSize = 50;
     for (let i = 0; i < pineconeVectors.length; i += chunkSize) {
       const chunk = pineconeVectors.slice(i, i + chunkSize);
-      await this.pineconeIndex.upsert({
-        upsertRequest: {
-          vectors: chunk,
-          namespace: this.namespace,
-        },
-      });
+      await namespace.upsert(chunk);
+    }
+    return documentIds;
+  }
+
+  /**
+   * Method that deletes vectors from the Pinecone database.
+   * @param params Parameters for the delete operation.
+   * @returns Promise that resolves when the delete operation is complete.
+   */
+  async delete(params: PineconeDeleteParams): Promise<void> {
+    const { deleteAll, ids } = params;
+    const namespace = this.pineconeIndex.namespace(this.namespace ?? "");
+
+    if (deleteAll) {
+      await namespace.deleteAll();
+    } else if (ids) {
+      const batchSize = 1000;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batchIds = ids.slice(i, i + batchSize);
+        await namespace.deleteMany(batchIds);
+      }
+    } else {
+      throw new Error("Either ids or delete_all must be provided.");
     }
   }
 
+  /**
+   * Method that performs a similarity search in the Pinecone database and
+   * returns the results along with their scores.
+   * @param query Query vector for the similarity search.
+   * @param k Number of top results to return.
+   * @param filter Optional filter to apply to the search.
+   * @returns Promise that resolves with an array of documents and their scores.
+   */
   async similaritySearchVectorWithScore(
     query: number[],
     k: number,
@@ -118,14 +189,13 @@ export class PineconeStore extends VectorStore {
       throw new Error("cannot provide both `filter` and `this.filter`");
     }
     const _filter = filter ?? this.filter;
-    const results = await this.pineconeIndex.query({
-      queryRequest: {
-        includeMetadata: true,
-        namespace: this.namespace,
-        topK: k,
-        vector: query,
-        filter: _filter,
-      },
+    const namespace = this.pineconeIndex.namespace(this.namespace ?? "");
+
+    const results = await namespace.query({
+      includeMetadata: true,
+      topK: k,
+      vector: query,
+      filter: _filter,
     });
 
     const result: [Document, number][] = [];
@@ -143,16 +213,22 @@ export class PineconeStore extends VectorStore {
     return result;
   }
 
+  /**
+   * Static method that creates a new instance of the PineconeStore class
+   * from texts.
+   * @param texts Array of texts to add to the Pinecone database.
+   * @param metadatas Metadata associated with the texts.
+   * @param embeddings Embeddings to use for the texts.
+   * @param dbConfig Configuration for the Pinecone database.
+   * @returns Promise that resolves with a new instance of the PineconeStore class.
+   */
   static async fromTexts(
     texts: string[],
     metadatas: object[] | object,
     embeddings: Embeddings,
     dbConfig:
       | {
-          /**
-           * @deprecated Use pineconeIndex instead
-           */
-          pineconeClient: VectorOperationsApi;
+          pineconeIndex: PineconeIndex;
           textKey?: string;
           namespace?: string | undefined;
         }
@@ -169,16 +245,21 @@ export class PineconeStore extends VectorStore {
     }
 
     const args: PineconeLibArgs = {
-      pineconeIndex:
-        "pineconeIndex" in dbConfig
-          ? dbConfig.pineconeIndex
-          : dbConfig.pineconeClient,
+      pineconeIndex: dbConfig.pineconeIndex,
       textKey: dbConfig.textKey,
       namespace: dbConfig.namespace,
     };
     return PineconeStore.fromDocuments(docs, embeddings, args);
   }
 
+  /**
+   * Static method that creates a new instance of the PineconeStore class
+   * from documents.
+   * @param docs Array of documents to add to the Pinecone database.
+   * @param embeddings Embeddings to use for the documents.
+   * @param dbConfig Configuration for the Pinecone database.
+   * @returns Promise that resolves with a new instance of the PineconeStore class.
+   */
   static async fromDocuments(
     docs: Document[],
     embeddings: Embeddings,
@@ -192,6 +273,13 @@ export class PineconeStore extends VectorStore {
     return instance;
   }
 
+  /**
+   * Static method that creates a new instance of the PineconeStore class
+   * from an existing index.
+   * @param embeddings Embeddings to use for the documents.
+   * @param dbConfig Configuration for the Pinecone database.
+   * @returns Promise that resolves with a new instance of the PineconeStore class.
+   */
   static async fromExistingIndex(
     embeddings: Embeddings,
     dbConfig: PineconeLibArgs
