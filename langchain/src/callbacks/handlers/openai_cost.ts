@@ -12,8 +12,15 @@ export class OpenAiTokenCost {
   static fromCallbackHandler(cbHandler: OpenAiCostCallbackHandler) {
     const tokenCost = new OpenAiTokenCost();
 
-    tokenCost.promptCost = OpenAiTokenCost._getOpenaiTokenCostForModel(cbHandler.modelName, cbHandler.promptTokens);
-    tokenCost.completionCost = OpenAiTokenCost._getOpenaiTokenCostForModel(cbHandler.modelName, cbHandler.completionTokens, true);
+    tokenCost.promptCost = OpenAiTokenCost._getOpenaiTokenCostForModel(
+      cbHandler.modelName,
+      cbHandler.promptTokens
+    );
+    tokenCost.completionCost = OpenAiTokenCost._getOpenaiTokenCostForModel(
+      cbHandler.modelName,
+      cbHandler.completionTokens,
+      true
+    );
     tokenCost.totalCost = tokenCost.promptCost + tokenCost.completionCost;
     tokenCost.unAccountedCalls = cbHandler.unAccountedCalls;
 
@@ -23,10 +30,16 @@ export class OpenAiTokenCost {
   toString() {
     const promptRatio = this.promptCost / this.totalCost;
     const completionRatio = this.completionCost / this.totalCost;
-    let outputText = '';
-    outputText += `- promptCost       ${this.promptCost.toFixed(7)}-usd (${(promptRatio * 100).toFixed(2)}%)\n`;
-    outputText += `- completionCost   ${this.completionCost.toFixed(7)}-usd (${(completionRatio * 100).toFixed(2)}%)\n`;
-    outputText += `- totalCost        ${this.totalCost.toFixed(7)}-usd (${(1 / this.totalCost).toFixed(2)} per usd)\n`;
+    let outputText = "";
+    outputText += `- promptCost       ${this.promptCost.toFixed(7)}-usd (${(
+      promptRatio * 100
+    ).toFixed(2)}%)\n`;
+    outputText += `- completionCost   ${this.completionCost.toFixed(7)}-usd (${(
+      completionRatio * 100
+    ).toFixed(2)}%)\n`;
+    outputText += `- totalCost        ${this.totalCost.toFixed(7)}-usd (${(
+      1 / this.totalCost
+    ).toFixed(2)} per usd)\n`;
     outputText += `- unAccountedCalls ${this.unAccountedCalls}`;
     return outputText;
   }
@@ -96,26 +109,26 @@ export class OpenAiTokenCost {
     "gpt-3.5-turbo-16k-completion": 0.004,
     "gpt-3.5-turbo-16k-0613-completion": 0.004,
     // Azure GPT-35 input
-    "gpt-35-turbo": 0.0015,  // Azure OpenAI version of ChatGPT
-    "gpt-35-turbo-0301": 0.0015,  // Azure OpenAI version of ChatGPT
+    "gpt-35-turbo": 0.0015, // Azure OpenAI version of ChatGPT
+    "gpt-35-turbo-0301": 0.0015, // Azure OpenAI version of ChatGPT
     "gpt-35-turbo-0613": 0.0015,
     "gpt-35-turbo-instruct": 0.0015,
     "gpt-35-turbo-16k": 0.003,
     "gpt-35-turbo-16k-0613": 0.003,
     // Azure GPT-35 output
-    "gpt-35-turbo-completion": 0.002,  // Azure OpenAI version of ChatGPT
-    "gpt-35-turbo-0301-completion": 0.002,  // Azure OpenAI version of ChatGPT
+    "gpt-35-turbo-completion": 0.002, // Azure OpenAI version of ChatGPT
+    "gpt-35-turbo-0301-completion": 0.002, // Azure OpenAI version of ChatGPT
     "gpt-35-turbo-0613-completion": 0.002,
     "gpt-35-turbo-instruct-completion": 0.002,
     "gpt-35-turbo-16k-completion": 0.004,
     "gpt-35-turbo-16k-0613-completion": 0.004,
     // Others
     "text-ada-001": 0.0004,
-    "ada": 0.0004,
+    ada: 0.0004,
     "text-babbage-001": 0.0005,
-    "babbage": 0.0005,
+    babbage: 0.0005,
     "text-curie-001": 0.002,
-    "curie": 0.002,
+    curie: 0.002,
     "text-davinci-003": 0.02,
     "text-davinci-002": 0.02,
     "code-davinci-002": 0.02,
@@ -140,7 +153,12 @@ export class OpenAiTokenCost {
       return `${modelName.split(":")[0]}-finetuned`;
     }
 
-    if (isCompletion && (modelName.startsWith("gpt-4") || modelName.startsWith("gpt-3.5") || modelName.startsWith("gpt-35"))) {
+    if (
+      isCompletion &&
+      (modelName.startsWith("gpt-4") ||
+        modelName.startsWith("gpt-3.5") ||
+        modelName.startsWith("gpt-35"))
+    ) {
       // Append "-completion" for certain model names if isCompletion is true
       return `${modelName}-completion`;
     }
@@ -148,16 +166,27 @@ export class OpenAiTokenCost {
     return modelName;
   }
 
-  static _getOpenaiTokenCostForModel(modelName: string, numTokens: number, isCompletion = false) {
-    const modelNameStandardized = OpenAiTokenCost._standardizeModelName(modelName, isCompletion);
+  static _getOpenaiTokenCostForModel(
+    modelName: string,
+    numTokens: number,
+    isCompletion = false
+  ) {
+    const modelNameStandardized = OpenAiTokenCost._standardizeModelName(
+      modelName,
+      isCompletion
+    );
 
     if (!(modelNameStandardized in OpenAiTokenCost._MODEL_COST_PER_1K_TOKENS)) {
       throw new Error(
-        `Unknown model: ${modelName}. Please provide a valid OpenAI model name. Known models are: ${Object.keys(OpenAiTokenCost._MODEL_COST_PER_1K_TOKENS).join(', ')}`
+        `Unknown model: ${modelName}. Please provide a valid OpenAI model name. Known models are: ${Object.keys(
+          OpenAiTokenCost._MODEL_COST_PER_1K_TOKENS
+        ).join(", ")}`
       );
     }
 
-    return OpenAiTokenCost._MODEL_COST_PER_1K_TOKENS[modelName] * (numTokens / 1000);
+    return (
+      OpenAiTokenCost._MODEL_COST_PER_1K_TOKENS[modelName] * (numTokens / 1000)
+    );
   }
 }
 
