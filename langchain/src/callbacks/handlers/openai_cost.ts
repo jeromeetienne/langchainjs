@@ -12,11 +12,11 @@ export class OpenAiTokenCost {
   static fromCallbackHandler(cbHandler: OpenAiCostCallbackHandler) {
     const tokenCost = new OpenAiTokenCost();
 
-    tokenCost.promptCost = OpenAiTokenCost._getOpenaiTokenCostForModel(
+    tokenCost.promptCost = OpenAiTokenCost.getCostForModel(
       cbHandler.modelName,
       cbHandler.promptTokens
     );
-    tokenCost.completionCost = OpenAiTokenCost._getOpenaiTokenCostForModel(
+    tokenCost.completionCost = OpenAiTokenCost.getCostForModel(
       cbHandler.modelName,
       cbHandler.completionTokens,
       true
@@ -166,7 +166,7 @@ export class OpenAiTokenCost {
     return modelName;
   }
 
-  static _getOpenaiTokenCostForModel(
+  static getCostForModel(
     modelName: string,
     numTokens: number,
     isCompletion = false
