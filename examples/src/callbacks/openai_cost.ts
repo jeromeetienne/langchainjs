@@ -1,9 +1,10 @@
-import { OpenAiTokenCost, OpenAiCostCallbackHandler } from "langchain/callbacks";
+import {
+  OpenAiTokenCost,
+  OpenAiCostCallbackHandler,
+} from "langchain/callbacks";
 import { LLMChain } from "langchain/chains";
 import { OpenAI } from "langchain/llms/openai";
 import { PromptTemplate } from "langchain/prompts";
-
-
 
 export const run = async () => {
   const modelName = "text-davinci-003";

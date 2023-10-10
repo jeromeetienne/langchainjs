@@ -9,7 +9,10 @@ export { type Run, type RunType, BaseTracer } from "./handlers/tracer.js";
 
 export { ConsoleCallbackHandler } from "./handlers/console.js";
 
-export { OpenAiCostCallbackHandler, OpenAiTokenCost } from "./handlers/openai_cost.js";
+export {
+  OpenAiCostCallbackHandler,
+  OpenAiTokenCost,
+} from "./handlers/openai_cost.js";
 
 export { RunCollectorCallbackHandler } from "./handlers/run_collector.js";
 
