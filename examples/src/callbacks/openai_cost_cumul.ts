@@ -16,7 +16,6 @@ export const run = async () => {
   console.log(output1);
   // { text: ' 3\n\n3 - 1 = 2' }
 
-
   // Chain 2
   const modelName2 = "text-davinci-003";
   const cbHandler2 = new OpenAiCostCallbackHandler(modelName2);
