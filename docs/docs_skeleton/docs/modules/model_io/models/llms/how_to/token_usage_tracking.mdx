@@ -8,7 +8,15 @@ import CodeBlock from "@theme/CodeBlock";
 import OpenAiCostExample from "@examples/callbacks/openai_cost.ts";
 import OpenAiCostCumulExample from "@examples/callbacks/openai_cost_cumul.ts";
 
-Let's look at a simple example of tracking token usage for a single LLM call.
+```typescript
+const modelName = "text-davinci-003";
+// create the callback handler
+const cbHandler = new OpenAiCostCallbackHandler(modelName);
+// use the callback handler in the model
+const model = new OpenAI({ modelName, callbacks: [cbHandler] });
+```
+
+Let's look at a standalone example of tracking token usage for a single LLM call.
 
 <CodeBlock language="typescript">{OpenAiCostExample}</CodeBlock>
 
@@ -21,13 +29,13 @@ You can will need to cumulate the cost of each messages, to cumulate to be the c
 then one can cumulate the cost of each conversation to get the total cost of a customer.
 
 ```typescript
-// create a callback handle for a given chain
+// create a callback handler for a given chain
 const cbHandler1 = new OpenAiCostCallbackHandler(modelName1);
 const openaiCost1 = OpenAiTokenCost.fromCallbackHandler(cbHandler1);
 
 // ...
 
-// create a callback handle for another chain
+// create a callback handler for another chain
 const cbHandler2 = new OpenAiCostCallbackHandler(modelName2);
 const openaiCost2 = OpenAiTokenCost.fromCallbackHandler(cbHandler2);
 
