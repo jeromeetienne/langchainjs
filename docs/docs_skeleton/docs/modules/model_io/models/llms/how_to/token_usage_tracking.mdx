@@ -3,6 +3,7 @@
 This example goes over how to track your token usage for specific calls. It is currently only implemented for the OpenAI API.
 You can then convert your token usage to a actual cost using the [OpenAI pricing page](https://openai.com/pricing/).
 Thus you can monitor and compare the cost of different prompts/calls.
+Additionally it provides a way to cumulate cost from various origins is provided as a convenience.
 
 import CodeBlock from "@theme/CodeBlock";
 import OpenAiCostExample from "@examples/callbacks/openai_cost.ts";
@@ -22,7 +23,7 @@ Let's look at a standalone example of tracking token usage for a single LLM call
 
 ### Using Cummulate Cost from Multiple Chains
 
-A way to cumulate cost from various origins is provided as a convenience.
+```OpenAiTokenCost``` provices a way to cumulate cost from various origins is provided as a convenience.
 
 Suppose you want to track the cost of a given customer over multiple chains. 
 You can will need to cumulate the cost of each messages, to cumulate to be the cost of a conversation.
