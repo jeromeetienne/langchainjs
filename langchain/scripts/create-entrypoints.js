@@ -68,12 +68,14 @@ const entrypoints = {
   "llms/bedrock": "llms/bedrock",
   "llms/llama_cpp": "llms/llama_cpp",
   "llms/writer": "llms/writer",
+  "llms/portkey": "llms/portkey",
   // prompts
   prompts: "prompts/index",
   "prompts/load": "prompts/load",
   // vectorstores
   "vectorstores/analyticdb": "vectorstores/analyticdb",
   "vectorstores/base": "vectorstores/base",
+  "vectorstores/cassandra": "vectorstores/cassandra",
   "vectorstores/elasticsearch": "vectorstores/elasticsearch",
   "vectorstores/memory": "vectorstores/memory",
   "vectorstores/cloudflare_vectorize": "vectorstores/cloudflare_vectorize",
@@ -83,6 +85,7 @@ const entrypoints = {
   "vectorstores/faiss": "vectorstores/faiss",
   "vectorstores/weaviate": "vectorstores/weaviate",
   "vectorstores/lancedb": "vectorstores/lancedb",
+  "vectorstores/momento_vector_index": "vectorstores/momento_vector_index",
   "vectorstores/mongo": "vectorstores/mongo",
   "vectorstores/mongodb_atlas": "vectorstores/mongodb_atlas",
   "vectorstores/pinecone": "vectorstores/pinecone",
@@ -163,6 +166,7 @@ const entrypoints = {
   // chat_models
   "chat_models/base": "chat_models/base",
   "chat_models/openai": "chat_models/openai",
+  "chat_models/portkey": "chat_models/portkey",
   "chat_models/anthropic": "chat_models/anthropic",
   "chat_models/bedrock": "chat_models/bedrock",
   "chat_models/googlevertexai": "chat_models/googlevertexai/index",
@@ -247,6 +251,7 @@ const entrypoints = {
   hub: "hub",
   // utilities
   "util/math": "util/math",
+  "util/time": "util/time",
   // experimental
   "experimental/autogpt": "experimental/autogpt/index",
   "experimental/babyagi": "experimental/babyagi/index",
@@ -256,14 +261,14 @@ const entrypoints = {
     "experimental/multimodal_embeddings/googlevertexai",
   "experimental/chat_models/anthropic_functions":
     "experimental/chat_models/anthropic_functions",
-  "experimental/chat_models/bittensor":
-    "experimental/chat_models/bittensor",
-  "experimental/llms/bittensor":
-    "experimental/llms/bittensor",
+  "experimental/chat_models/bittensor": "experimental/chat_models/bittensor",
+  "experimental/llms/bittensor": "experimental/llms/bittensor",
   "experimental/hubs/makersuite/googlemakersuitehub":
     "experimental/hubs/makersuite/googlemakersuitehub",
   // evaluation
   evaluation: "evaluation/index",
+  // runnables
+  "runnables/remote": "runnables/remote",
 };
 
 // Entrypoints in this list will
@@ -314,8 +319,10 @@ const requiresOptionalDependency = [
   "llms/bedrock",
   "llms/llama_cpp",
   "llms/writer",
+  "llms/portkey",
   "prompts/load",
   "vectorstores/analyticdb",
+  "vectorstores/cassandra",
   "vectorstores/chroma",
   "vectorstores/cloudflare_vectorize",
   "vectorstores/googlevertexai",
@@ -325,6 +332,7 @@ const requiresOptionalDependency = [
   "vectorstores/weaviate",
   "vectorstores/lancedb",
   "vectorstores/mongo",
+  "vectorstores/momento_vector_index",
   "vectorstores/mongodb_atlas",
   "vectorstores/pinecone",
   "vectorstores/qdrant",
@@ -382,6 +390,7 @@ const requiresOptionalDependency = [
   "chat_models/googlevertexai",
   "chat_models/googlevertexai/web",
   "chat_models/googlepalm",
+  "chat_models/portkey",
   "sql_db",
   "retrievers/amazon_kendra",
   "retrievers/supabase",
