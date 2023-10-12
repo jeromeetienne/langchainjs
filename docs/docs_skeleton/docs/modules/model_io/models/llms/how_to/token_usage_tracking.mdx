@@ -1,12 +1,42 @@
 # Token Usage Tracking
 
-[python page](https://python.langchain.com/docs/modules/model_io/models/llms/token_usage_tracking)
-
 This example goes over how to track your token usage for specific calls. It is currently only implemented for the OpenAI API.
-
-Let's look at a simple example of tracking token usage for a single LLM call.
+You can then convert your token usage to a actual cost using the [OpenAI pricing page](https://openai.com/pricing/).
+Thus you can monitor and compare the cost of different prompts/calls.
 
 import CodeBlock from "@theme/CodeBlock";
 import OpenAiCostExample from "@examples/callbacks/openai_cost.ts";
+import OpenAiCostCumulExample from "@examples/callbacks/openai_cost_cumul.ts";
+
+Let's look at a simple example of tracking token usage for a single LLM call.
 
 <CodeBlock language="typescript">{OpenAiCostExample}</CodeBlock>
+
+### Using Cummulate Cost from Multiple Chains
+
+A way to cumulate cost from various origins is provided as a convenience.
+
+Suppose you want to track the cost of a given customer over multiple chains. 
+You can will need to cumulate the cost of each messages, to cumulate to be the cost of a conversation.
+then one can cumulate the cost of each conversation to get the total cost of a customer.
+
+```typescript
+// create a callback handle for a given chain
+const cbHandler1 = new OpenAiCostCallbackHandler(modelName1);
+const openaiCost1 = OpenAiTokenCost.fromCallbackHandler(cbHandler1);
+
+// ...
+
+// create a callback handle for another chain
+const cbHandler2 = new OpenAiCostCallbackHandler(modelName2);
+const openaiCost2 = OpenAiTokenCost.fromCallbackHandler(cbHandler2);
+
+// ...
+
+// Compute the cumulated cost of the two chains
+const openaiCostCumul = openaiCost1.clone().add(openaiCost2);
+```
+
+Here is a simple example of cumulating the cost of two chains.
+
+<CodeBlock language="typescript">{OpenAiCostCumulExample}</CodeBlock>

@@ -9,8 +9,10 @@ import { PromptTemplate } from "langchain/prompts";
 export const run = async () => {
   const modelName = "text-davinci-003";
 
-  const handler = new OpenAiCostCallbackHandler(modelName);
-  const llm = new OpenAI({ modelName, temperature: 0, callbacks: [handler] });
+  // create the callback handler
+  const cbHandler = new OpenAiCostCallbackHandler(modelName);
+  // use the callback handler in the llm
+  const llm = new OpenAI({ modelName, temperature: 0, callbacks: [cbHandler] });
 
   // use the llm in a chain
   const prompt = PromptTemplate.fromTemplate("1 + {number} =");
@@ -22,25 +24,18 @@ export const run = async () => {
    */
 
   // display the token usage
-  console.log(`Prompt Tokens: ${handler.promptTokens}`);
-  console.log(`Completion Tokens: ${handler.completionTokens}`);
-  console.log(`Total Tokens: ${handler.totalTokens}`);
-
+  console.log(`Prompt Tokens: ${cbHandler.promptTokens}`);
+  console.log(`Completion Tokens: ${cbHandler.completionTokens}`);
+  console.log(`Total Tokens: ${cbHandler.totalTokens}`);
   // Total Tokens: 12
   // Prompt Tokens: 4
   // Completion Tokens: 8
 
-  const openaiCost = OpenAiTokenCost.fromCallbackHandler(handler);
-  console.log(`Total Cost:\n${openaiCost}`);
+  // convert token usage to cost
+  const openaiCost = OpenAiTokenCost.fromCallbackHandler(cbHandler);
 
-  // Total Cost:
-  // - promptCost       0.0000800-usd (33.33%)
-  // - completionCost   0.0001600-usd (66.67%)
-  // - totalCost        0.0002400-usd (4166.67 per usd)
-  // - unAccountedCalls 0
-
-  // console.log({openaiCost});
-
+  // structure of openaiCost
+  console.log({openaiCost});
   // {
   //   openaiCost: OpenAiTokenCost {
   //     promptCost: 0.00008,
@@ -49,4 +44,12 @@ export const run = async () => {
   //     unAccountedCalls: 0
   //   }
   // }
+
+  // example of .toString() helper
+  console.log(`Total Cost:\n${openaiCost}`);
+  // Total Cost:
+  // - promptCost       0.0000800-usd (33.33%)
+  // - completionCost   0.0001600-usd (66.67%)
+  // - totalCost        0.0002400-usd (4166.67 per usd)
+  // - unAccountedCalls 0
 };
